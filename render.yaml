@@ -1,8 +1,11 @@
 services:
-  - type: web
+  - type: worker
     name: tg-bot
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: python telegram_bot.py
     pythonVersion: 3.10.13
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
