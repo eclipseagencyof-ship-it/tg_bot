@@ -149,9 +149,11 @@ async def cb_onlyfans_answer(cq: types.CallbackQuery, state: FSMContext):
     else:
         await bot.send_message(cq.from_user.id, f"Ничего страшного, {name}, я всё объясню с нуля 😉")
 
-    # Завершаем состояние
+
     await state.finish()
 
+    # вызываем следующую функцию
+    await send_onlyfans_intro(cq.from_user.id)
     # 1️⃣ Отправляем первый блок с изображением и описанием OnlyFans
     with open("images/onlyfans_intro.jpg", "rb") as photo:
         caption1 = (
