@@ -11,6 +11,7 @@ from aiogram.types import (
     InlineKeyboardMarkup, InlineKeyboardButton, InputFile, ParseMode
 )
 from dotenv import load_dotenv
+from aiohttp import web
 
 # === Настройка окружения ===
 load_dotenv()
@@ -32,13 +33,41 @@ IMAGES_DIR = Path("images")
 RESULTS_DIR = Path("results")
 RESULTS_DIR.mkdir(exist_ok=True)
 
+# --- WEB SERVER RUNNER (для Render) ---
+web_runner = None  # will hold aiohttp AppRunner
+
+async def web_index(request):
+    return web.Response(text="OK — bot is running")
+
+async def start_web_app():
+    """Start aiohttp web app on PORT (Render provides PORT env var)."""
+    global web_runner
+    port = int(os.getenv("PORT", "10000"))
+    app = web.Application()
+    app.router.add_get("/", web_index)
+    web_runner = web.AppRunner(app)
+    await web_runner.setup()
+    site = web.TCPSite(web_runner, "0.0.0.0", port)
+    await site.start()
+    logger.info(f"Web server started on 0.0.0.0:{port}")
+
+async def stop_web_app():
+    global web_runner
+    if web_runner:
+        try:
+            await web_runner.cleanup()
+            logger.info("Web server stopped")
+        except Exception as e:
+            logger.exception("Error stopping web server: %s", e)
+        web_runner = None
+
 # --- Состояния ---
 class Form(StatesGroup):
     waiting_for_name = State()
     waiting_for_onlyfans = State()
     quiz_waiting_answer = State()
     objections_menu = State()
-    # we will reuse quiz_waiting_answer for sequential quiz
+
 
 # --- Клавиатуры ---
 btn_conditions = KeyboardButton("⭐Мне подходят условия⭐")
@@ -47,6 +76,7 @@ keyboard_conditions = ReplyKeyboardMarkup(resize_keyboard=True).add(btn_conditio
 btn_yes = KeyboardButton("Да")
 btn_no = KeyboardButton("Нет")
 keyboard_yes_no = ReplyKeyboardMarkup(resize_keyboard=True).add(btn_yes, btn_no)
+
 
 # --- Хелперы по отправке медиа ---
 def input_file_safe(path: Path):
@@ -61,6 +91,7 @@ async def send_photo_or_text(chat_id: int, image_name: str, caption: str):
         await bot.send_photo(chat_id, photo=f, caption=caption, parse_mode=ParseMode.HTML)
     else:
         await bot.send_message(chat_id, caption, parse_mode=ParseMode.HTML)
+
 
 # --- Хендлер /start ---
 @dp.message_handler(commands=['start'])
@@ -91,6 +122,7 @@ async def start_cmd(message: types.Message):
                            "🚀 Карьерный рост — от оператора до администратора\n\n"
                            "Нажми кнопку ниже, если тебе подходят условия 👇",
                            reply_markup=keyboard_conditions)
+
 
 # --- FSM: agree conditions ---
 @dp.message_handler(lambda message: message.text == "⭐Мне подходят условия⭐")
@@ -129,6 +161,7 @@ async def process_onlyfans_answer(message: types.Message, state: FSMContext):
     keyboard = InlineKeyboardMarkup().add(InlineKeyboardButton("А как заработать?", callback_data="earn_money"))
     await bot.send_message(message.chat.id, "Теперь расскажу, как именно ты сможешь зарабатывать 💸", reply_markup=keyboard)
 
+
 # --- Earn money flow ---
 @dp.callback_query_handler(lambda c: c.data == "earn_money")
 async def cb_earn_money(cq: types.CallbackQuery):
@@ -154,6 +187,7 @@ async def cb_earn_money(cq: types.CallbackQuery):
     text3 = "Пиши клиентам каждый день, даже если они пока не готовы тратить. Когда деньги появятся — они вспомнят именно тебя ❤️‍🩹"
     kb = InlineKeyboardMarkup().add(InlineKeyboardButton("Где и как искать клиентов ?", callback_data="find_clients"))
     await bot.send_message(uid, text3, reply_markup=kb)
+
 
 # --- Find clients flow ---
 @dp.callback_query_handler(lambda c: c.data == "find_clients")
@@ -184,19 +218,20 @@ async def cb_find_clients(cq: types.CallbackQuery):
     kb = InlineKeyboardMarkup().add(InlineKeyboardButton("Зачем нужны разные рассылки?", callback_data="diff_mailings"))
     await bot.send_message(uid, text3, reply_markup=kb)
 
+
 # --- Diff mailings ---
 @dp.callback_query_handler(lambda c: c.data == "diff_mailings")
 async def cb_diff_mailings(cq: types.CallbackQuery):
     uid = cq.from_user.id
     await send_photo_or_text(uid, "vip.jpg", "VIP-клиентам — только индивидуальные рассылки. Они платят за внимание, а не за шаблон.")
     await send_photo_or_text(uid, "online.jpg", "Если клиент сейчас онлайн — это лучший момент для рассылки. Шанс получить ответ выше.")
-    # mass
+    await send_photo_or_text(uid, "mass.jpg", "Массовая рассылка — для всех. Пиши нейтрально и с лёгким флиртом.")
     kb = InlineKeyboardMarkup().row(
         InlineKeyboardButton("Я всё понял", callback_data="understood"),
         InlineKeyboardButton("Можно ещё информацию?", callback_data="understood")
     )
-    await send_photo_or_text(uid, "mass.jpg", "Массовая рассылка — для всех. Пиши нейтрально и с лёгким флиртом.",)
     await bot.send_message(uid, "Выберите:", reply_markup=kb)
+
 
 # --- Understood -> continue ---
 @dp.callback_query_handler(lambda c: c.data == "understood")
@@ -207,6 +242,7 @@ async def cb_understood(cq: types.CallbackQuery):
     kb = InlineKeyboardMarkup().add(InlineKeyboardButton("Да", callback_data="questions_start"))
     await bot.send_message(uid, "Двигаемся дальше?", reply_markup=kb)
 
+
 # --- Questions start (move to ПО / teamwork choice) ---
 @dp.callback_query_handler(lambda c: c.data == "questions_start")
 async def cb_questions_start(cq: types.CallbackQuery):
@@ -214,7 +250,7 @@ async def cb_questions_start(cq: types.CallbackQuery):
     await bot.send_message(uid, "Сейчас закрепим материал. Отвечай своими словами — не используй ИИ.")
     await bot.send_message(uid, "🙋 На что в первую очередь нужно опираться при общении с клиентами?")
     await bot.send_message(uid, "🙋 Можно ли в рассылках использовать слишком откровенные сообщения и почему?")
-    await bot.send_message(uid, "✍️ Напиши персонализированное сообщение-рассылку клиенту: Саймон, у него 3-летняя дочь, он любит баскетбол 🏀")
+    await bot.send_message(uid, "✍️ Напиши персонализированное сообщение-рассылку клиенту: Саймон, у него 3-х летняя дочь, он любит баскетбол 🏀")
 
     photo = IMAGES_DIR / "teamwork.jpg"
     kb = InlineKeyboardMarkup().row(
@@ -225,6 +261,7 @@ async def cb_questions_start(cq: types.CallbackQuery):
         await bot.send_photo(uid, photo=InputFile(str(photo)), caption="Теперь обсудим ПО и командную работу 🤖", reply_markup=kb)
     else:
         await bot.send_message(uid, "Теперь обсудим ПО и командную работу 🤖", reply_markup=kb)
+
 
 # === ВТОРАЯ ЧАСТЬ: ПО и Командная работа ===
 
@@ -297,6 +334,7 @@ async def teamwork_flow(uid: int):
 
     kb = InlineKeyboardMarkup().add(InlineKeyboardButton("Перейдем к ПО", callback_data="soft"))
     await bot.send_message(uid, "Перейти к ПО?", reply_markup=kb)
+
 
 # === ТРЕТЬЯ ЧАСТЬ: Возражения, инструменты и финальный тест ===
 
@@ -441,6 +479,7 @@ async def cb_obj_checklist(cq: types.CallbackQuery):
     kb = InlineKeyboardMarkup().add(InlineKeyboardButton("Пройти тест", callback_data="start_quiz"))
     await bot.send_message(uid, "Готов пройти тест?", reply_markup=kb)
 
+
 # === QUIZ / TEST SEQUENCE ===
 QUIZ_QUESTIONS = [
     "🙋 На что в первую очередь нужно опираться при общении с клиентами?",
@@ -456,7 +495,6 @@ QUIZ_QUESTIONS = [
     "Новый клиент сразу требует самый откровенный контент — как ответишь?"
 ]
 
-# We will store answers per user in memory then save to file on finish
 user_quiz_data = {}  # user_id -> {"q_index": int, "answers": []}
 
 @dp.callback_query_handler(lambda c: c.data == "start_quiz")
@@ -464,7 +502,6 @@ async def cb_start_quiz(cq: types.CallbackQuery):
     uid = cq.from_user.id
     user_quiz_data[uid] = {"q_index": 0, "answers": []}
     await bot.send_message(uid, "🔎 Тест начат. Отвечай честно, своими словами. Поехали!")
-    # send first question
     await bot.send_message(uid, QUIZ_QUESTIONS[0])
     await Form.quiz_waiting_answer.set()
 
@@ -482,19 +519,13 @@ async def process_quiz_answer(message: types.Message, state: FSMContext):
     data["answers"].append({"question": QUIZ_QUESTIONS[q_index], "answer": ans})
     q_index += 1
     data["q_index"] = q_index
-
-    # Save progress to memory
     user_quiz_data[uid] = data
 
     if q_index < len(QUIZ_QUESTIONS):
-        # ask next question
         await bot.send_message(uid, QUIZ_QUESTIONS[q_index])
-        # remain in same state
         return
     else:
-        # finished
         await state.finish()
-        # save to file
         save_path = RESULTS_DIR / f"{uid}_answers.txt"
         with open(save_path, "w", encoding="utf-8") as f:
             f.write("Quiz results for user_id: {}\n\n".format(uid))
@@ -503,8 +534,6 @@ async def process_quiz_answer(message: types.Message, state: FSMContext):
                 f.write(f"A{i}: {qa['answer']}\n\n")
         await bot.send_message(uid, "✅ Тест завершён! Спасибо за ответы.")
         await bot.send_message(uid, "Мы сохранили твои ответы. Сейчас — финальное сообщение.")
-        # Congratulate and instruct to contact recruiter
-        # Try to get user's name
         user_name = message.from_user.first_name or "друг"
         final_text = (
             f"Ну что ж, {user_name}, открывай бутылку Moet Chandon 🍾 — поздравляю с окончанием вводного обучения 🔥\n\n"
@@ -515,8 +544,8 @@ async def process_quiz_answer(message: types.Message, state: FSMContext):
             "Шутка: не забывай отправлять мне 50% своей зарплаты 😉"
         )
         await bot.send_message(uid, final_text)
-        # optionally clear user data
         user_quiz_data.pop(uid, None)
+
 
 # --- Fallback handlers / small utilities ---
 @dp.message_handler(commands=['menu'])
@@ -533,7 +562,37 @@ async def fallback(message: types.Message):
     # If user is in quiz state, message will be handled by that handler.
     await message.answer("Не распознал команду. Используй /start или /menu. Если хочешь пройти тест — нажми 'Пройти тест' в меню возражений.")
 
+
+# === START / SHUTDOWN HOOKS FOR aiogram + aiohttp ===
+async def on_startup(dp: Dispatcher):
+    # Delete webhook if exists (prevents TerminatedByOtherGetUpdates)
+    try:
+        await bot.delete_webhook()
+        logger.info("Webhook deleted (if existed).")
+    except Exception as e:
+        logger.warning("Failed deleting webhook: %s", e)
+
+    # Start web server so Render sees open port
+    try:
+        await start_web_app()
+    except Exception as e:
+        logger.exception("Failed to start web app: %s", e)
+
+async def on_shutdown(dp: Dispatcher):
+    # stop web server
+    try:
+        await stop_web_app()
+    except Exception:
+        pass
+
+    # close bot session
+    try:
+        await bot.session.close()
+    except Exception:
+        pass
+
 # --- Запуск ---
 if __name__ == '__main__':
     logger.info("Starting bot...")
-    executor.start_polling(dp, skip_updates=True)
+    # Use on_startup/on_shutdown to run aiohttp web server concurrently with polling
+    executor.start_polling(dp, skip_updates=True, on_startup=on_startup, on_shutdown=on_shutdown)
