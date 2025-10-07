@@ -6,7 +6,7 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import (
-    InlineKeyboardMarkup, InlineKeyboardButton, InputFile, ParseMode
+    InlineKeyboardMarkup, InlineKeyboardButton, InputFi3le, ParseMode
 )
 from dotenv import load_dotenv
 from urllib.parse import urlparse
@@ -152,7 +152,7 @@ async def cb_onlyfans_answer(cq: types.CallbackQuery, state: FSMContext):
     # Завершаем состояние
     await state.finish()
 
-    # 1️⃣ Локальная картинка + текст
+    # 1️⃣ Отправляем первый блок с изображением и описанием OnlyFans
     with open("images/onlyfans_intro.jpg", "rb") as photo:
         caption1 = (
             "*OnlyFans* — это пространство, куда приходят люди за чувственным и эмоциональным контактом.\n\n"
@@ -166,7 +166,7 @@ async def cb_onlyfans_answer(cq: types.CallbackQuery, state: FSMContext):
         )
         await bot.send_photo(cq.from_user.id, photo=photo, caption=caption1, parse_mode="Markdown")
 
-    # 2️⃣ Следующий блок с кнопкой "Дальше"
+    # 2️⃣ Отправляем второй блок с кнопкой «Дальше»
     text2 = (
         "Прежде чем начать обучение — запомни главное: ты не просто продаёшь контент, ты даришь людям ощущение счастья 📌\n\n"
         "С таким подходом ты не только обойдёшь конкурентов, но и почувствуешь настоящую ценность своей работы 🤙\n\n"
@@ -174,8 +174,8 @@ async def cb_onlyfans_answer(cq: types.CallbackQuery, state: FSMContext):
         "Мы не можем дать им физическую любовь, но можем подарить им близость, страсть… ну и, конечно, нюдсы 😏\n\n"
         "Ладно, хватит лирики — поехали дальше! 💥"
     )
-    kb_next1 = InlineKeyboardMarkup().add(InlineKeyboardButton("➡️ Дальше", callback_data="of_next_1"))
-    await bot.send_message(cq.from_user.id, text2, reply_markup=kb_next1)
+    kb_next = InlineKeyboardMarkup().add(InlineKeyboardButton("➡️ Дальше", callback_data="next_lesson_1"))
+    await bot.send_message(cq.from_user.id, text2, reply_markup=kb_next)
 
 
 @dp.callback_query_handler(lambda c: c.data == "of_next_1")
