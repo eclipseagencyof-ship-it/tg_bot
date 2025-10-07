@@ -10,6 +10,7 @@ from aiogram.types import (
 )
 from dotenv import load_dotenv
 from urllib.parse import urlparse
+from aiogram.utils.exceptions import InvalidQueryID
 
 # --- Load environment ---
 load_dotenv()
@@ -54,9 +55,20 @@ def make_kb(*rows):
 
 
 def input_file_safe(path: Path):
-    if path.exists():
+    """Return InputFile if exists, otherwise None."""
+    if path and Path(path).exists():
         return InputFile(str(path))
     return None
+
+
+async def safe_answer(cq: types.CallbackQuery):
+    """Answer callback_query but ignore InvalidQueryID (too old) errors."""
+    try:
+        await cq.answer()
+    except InvalidQueryID:
+        logger.debug("CallbackQuery too old / already answered - ignoring.")
+    except Exception as e:
+        logger.exception("Unexpected error in cq.answer(): %s", e)
 
 
 # ======================== HANDLERS ========================
@@ -88,10 +100,11 @@ async def cmd_start(message: types.Message):
         InlineKeyboardButton("⭐Мне подходят условия⭐", callback_data="agree_conditions")
     )
 
-    if welcome_img.exists():
+    file_ = input_file_safe(welcome_img)
+    if file_:
         await bot.send_photo(
             chat_id=message.chat.id,
-            photo=InputFile(str(welcome_img)),
+            photo=file_,
             caption=caption + "\n\n" + intro_text,
             parse_mode=ParseMode.HTML,
             reply_markup=kb
@@ -107,7 +120,7 @@ async def cmd_start(message: types.Message):
 
 @dp.callback_query_handler(lambda c: c.data == "agree_conditions")
 async def cb_agree_conditions(cq: types.CallbackQuery):
-    await cq.answer()
+    await safe_answer(cq)
 
     # Первое сообщение — информация
     warning_text = (
@@ -139,7 +152,7 @@ async def process_name(message: types.Message, state: FSMContext):
 
 @dp.callback_query_handler(lambda c: c.data and c.data.startswith("onlyfans_"), state=Form.waiting_for_onlyfans)
 async def cb_onlyfans_answer(cq: types.CallbackQuery, state: FSMContext):
-    await cq.answer()
+    await safe_answer(cq)
     data = await state.get_data()
     name = data.get("name", "друг")
 
@@ -149,24 +162,26 @@ async def cb_onlyfans_answer(cq: types.CallbackQuery, state: FSMContext):
     else:
         await bot.send_message(cq.from_user.id, f"Ничего страшного, {name}, я всё объясню с нуля 😉")
 
-
+    # Завершаем состояние
     await state.finish()
 
-    # вызываем следующую функцию
-    await send_onlyfans_intro(cq.from_user.id)
+    # ---- продолжение урока: отправляем блоки безопасно ----
     # 1️⃣ Отправляем первый блок с изображением и описанием OnlyFans
-    with open("images/onlyfans_intro.jpg", "rb") as photo:
-        caption1 = (
-            "*OnlyFans* — это пространство, куда приходят люди за чувственным и эмоциональным контактом.\n\n"
-            "В большинстве случаев речь идёт о «сексе по переписке», дополненном атмосферой тёплого диалога — "
-            "о жизни, мыслях, желаниях.\n\n"
-            "Да, платформа позволяет продавать разнообразный контент, но давай говорить честно: просто так никто ничего покупать не станет. "
-            "Тут важно не «контент», а связь и ощущение значимости.\n\n"
-            "Оборот платформы — десятки миллиардов долларов в год, а владелец получает миллиардные дивиденды, "
-            "так что вопрос с деньгами тут же и закроем. Деньги здесь есть. И их много.\n\n"
-            "Наша задача — может и не гнаться за всем пирогом🥧, а отрезать себе действительно достойный кусок💸"
-        )
-        await bot.send_photo(cq.from_user.id, photo=photo, caption=caption1, parse_mode="Markdown")
+    photo_file = input_file_safe(IMAGES_DIR / "onlyfans_intro.jpg")
+    caption1 = (
+        "*OnlyFans* — это пространство, куда приходят люди за чувственным и эмоциональным контактом.\n\n"
+        "В большинстве случаев речь идёт о «сексе по переписке», дополненном атмосферой тёплого диалога — "
+        "о жизни, мыслях, желаниях.\n\n"
+        "Да, платформа позволяет продавать разнообразный контент, но давай говорить честно: просто так никто ничего покупать не станет. "
+        "Тут важно не «контент», а связь и ощущение значимости.\n\n"
+        "Оборот платформы — десятки миллиардов долларов в год, а владелец получает миллиардные дивиденды, "
+        "так что вопрос с деньгами тут же и закроем. Деньги здесь есть. И их много.\n\n"
+        "Наша задача — может и не гнаться за всем пирогом🥧, а отрезать себе действительно достойный кусок💸"
+    )
+    if photo_file:
+        await bot.send_photo(cq.from_user.id, photo=photo_file, caption=caption1, parse_mode=ParseMode.MARKDOWN)
+    else:
+        await bot.send_message(cq.from_user.id, caption1, parse_mode=ParseMode.MARKDOWN)
 
     # 2️⃣ Отправляем второй блок с кнопкой «Дальше»
     text2 = (
@@ -176,32 +191,35 @@ async def cb_onlyfans_answer(cq: types.CallbackQuery, state: FSMContext):
         "Мы не можем дать им физическую любовь, но можем подарить им близость, страсть… ну и, конечно, нюдсы 😏\n\n"
         "Ладно, хватит лирики — поехали дальше! 💥"
     )
-    kb_next = InlineKeyboardMarkup().add(InlineKeyboardButton("➡️ Дальше", callback_data="next_lesson_1"))
+    kb_next = InlineKeyboardMarkup().add(InlineKeyboardButton("➡️ Дальше", callback_data="of_next_1"))
     await bot.send_message(cq.from_user.id, text2, reply_markup=kb_next)
 
 
 @dp.callback_query_handler(lambda c: c.data == "of_next_1")
 async def of_next_1(cq: types.CallbackQuery):
-    await cq.answer()
+    await safe_answer(cq)
 
     # 3️⃣ Вторая локальная картинка + текст
-    with open("images/of_people.jpg", "rb") as photo:
-        caption2 = (
-            "🖼 Многие приходят в Adult-индустрию ради заработка, но забывают о главном — о людях по ту сторону экрана 🥲\n\n"
-            "В интернете побеждает тот, кто отдаёт больше: не контента, а внимания и понимания.\n\n"
-            "Пользователи платят не за «WOW», а за тёплое, живое общение.\n\n"
-            "OnlyFans — это не просто платформа, а социальная сеть, куда заходят не только «выпустить пар», но и пообщаться 🫂\n\n"
-            "Если хочешь зарабатывать стабильно, а не срубить быстро и сгореть — делай так, чтобы с тобой хотели общаться.\n\n"
-            "Понимание потребностей и индивидуальный подход — вот что приносит настоящие деньги 💸\n\n"
-            "Сделай жизнь клиента чуть ярче, и он точно это оценит 😉"
-        )
-        kb_next2 = InlineKeyboardMarkup().add(InlineKeyboardButton("➡️ Дальше", callback_data="of_next_2"))
-        await bot.send_photo(cq.from_user.id, photo=photo, caption=caption2, reply_markup=kb_next2)
+    photo_file = input_file_safe(IMAGES_DIR / "of_people.jpg")
+    caption2 = (
+        "🖼 Многие приходят в Adult-индустрию ради заработка, но забывают о главном — о людях по ту сторону экрана 🥲\n\n"
+        "В интернете побеждает тот, кто отдаёт больше: не контента, а внимания и понимания.\n\n"
+        "Пользователи платят не за «WOW», а за тёплое, живое общение.\n\n"
+        "OnlyFans — это не просто платформа, а социальная сеть, куда заходят не только «выпустить пар», но и пообщаться 🫂\n\n"
+        "Если хочешь зарабатывать стабильно, а не срубить быстро и сгореть — делай так, чтобы с тобой хотели общаться.\n\n"
+        "Понимание потребностей и индивидуальный подход — вот что приносит настоящие деньги 💸\n\n"
+        "Сделай жизнь клиента чуть ярче, и он точно это оценит 😉"
+    )
+    kb_next2 = InlineKeyboardMarkup().add(InlineKeyboardButton("➡️ Дальше", callback_data="of_next_2"))
+    if photo_file:
+        await bot.send_photo(cq.from_user.id, photo=photo_file, caption=caption2, reply_markup=kb_next2, parse_mode=ParseMode.MARKDOWN)
+    else:
+        await bot.send_message(cq.from_user.id, caption2, reply_markup=kb_next2, parse_mode=ParseMode.MARKDOWN)
 
 
 @dp.callback_query_handler(lambda c: c.data == "of_next_2")
 async def of_next_2(cq: types.CallbackQuery):
-    await cq.answer()
+    await safe_answer(cq)
 
     # 4️⃣ Финальное сообщение
     text4 = (
@@ -215,10 +233,13 @@ async def of_next_2(cq: types.CallbackQuery):
         InlineKeyboardButton("⭐ А как заработать? ⭐", callback_data="how_to_earn")
     )
 
-    await bot.send_message(cq.from_user.id, text4, reply_markup=kb_earn)# 🟢 Реакция на кнопку "⭐ А как заработать? ⭐"
+    await bot.send_message(cq.from_user.id, text4, reply_markup=kb_earn)
+
+
+# 🟢 Реакция на кнопку "⭐ А как заработать? ⭐"
 @dp.callback_query_handler(lambda c: c.data == "how_to_earn")
 async def how_to_earn_info(cq: types.CallbackQuery):
-    await cq.answer()
+    await safe_answer(cq)
 
     # 1️⃣ Первый блок
     text1 = (
@@ -258,27 +279,28 @@ async def how_to_earn_info(cq: types.CallbackQuery):
 # 🟢 Реакция на кнопку "⭐ Где и как искать клиентов? ⭐"
 @dp.callback_query_handler(lambda c: c.data == "find_clients")
 async def find_clients_info(cq: types.CallbackQuery):
-    await cq.answer()
+    await safe_answer(cq)
 
     # 1️⃣ Первый блок — с фото
-    photo_path = "images/find_clients.jpg"  # замени на своё название файла
+    photo_path = IMAGES_DIR / "find_clients.jpg"
     caption1 = (
         "🖼 Представь, что ты на рыбалке: улов зависит от наживки. В нашем случае — это рассылка фанам.\n\n"
         "Фан уже видел сотни сообщений, сделай так, чтобы клюнул на твоё 🎣\n\n"
         "Добавляй сленг, сокращай, меняй формулировки — главное, чтобы выглядело живо и по-своему. Например:\n\n"
         "👉 Hey, do you mind getting to know each other? → Hey! U down to link up to me? 👋😄\n"
         "(Привет, не против узнать друг друга? → Хей! Не хочешь присоединиться ко мне?)\n\n"
-        "👉 Are you here for fun or are you looking for something more? → U here 4 fun or lookin’ 4 sumthin’ more? 😄\n"
-        "(Ты здесь для развлечения или ищешь что-то большее?)"
+        "👉 Are you here for fun or are you looking for something more? → U here 4 fun or lookin’ 4 sumthin’ more? 😄"
     )
-    with open(photo_path, "rb") as photo:
-        await bot.send_photo(cq.from_user.id, photo=photo, caption=caption1)
+    f = input_file_safe(photo_path)
+    if f:
+        await bot.send_photo(cq.from_user.id, photo=f, caption=caption1)
+    else:
+        await bot.send_message(cq.from_user.id, caption1)
 
     # 2️⃣ Второй блок — текст без фото
     text2 = (
         "Да, OnlyFans — платформа для откровенного контента, но рассылки не должны быть слишком прямыми "
         "или порнографичными 🔞\n\n"
-        "Почему?\n\n"
         "Откровенный спам быстро убивает интерес. Клиенты заносят вас в список «ещё одной шлюхи» — "
         "а такие не цепляют и не вызывают желания платить 💸\n\n"
         "Работай тонко: лёгкая эротика, намёки, игра с воображением. Пусть его фантазия доделает остальное 💡"
@@ -300,69 +322,62 @@ async def find_clients_info(cq: types.CallbackQuery):
     await bot.send_message(cq.from_user.id, text3, reply_markup=kb_diff)
 
 
-
 # 🟢 Продолжение после кнопки "💡 Зачем нужны разные рассылки?"
 @dp.callback_query_handler(lambda c: c.data == "diff_mailings")
 async def diff_mailings_info(cq: types.CallbackQuery):
-    await cq.answer()
+    await safe_answer(cq)
 
     # 1️⃣ Текст + картинка (VIP)
-    photo_vip = "images/vip_clients.jpg"
+    photo_vip = IMAGES_DIR / "vip_clients.jpg"
     caption_vip = (
         "Рассылка подбирается под тип клиента 💬\n\n"
         "VIP-клиентам — только индивидуальные рассылки.\n\n"
         "Они платят за внимание, а не за шаблон. Проявляй интерес, вспоминай прошлые темы, держи связь 👀\n\n"
         "Например, обсуждали *Hogwarts Legacy*? Загугли что-то прикольное и напиши:\n\n"
-        "«Ты уже видел танцующего эльфа в тазике? Надеюсь, не пропустил этот момент! Только не шути, что он — это я в ванной 😂»\n\n"
-        "Уловил суть? VIP клиент должен получать рассылку, привязанную исключительно к уже состоявшимся диалогам ранее."
+        "«Ты уже видел танцующего эльфа в тазике? Надеюсь, не пропустил этот момент! Только не шути, что он — это я в ванной 😂»"
     )
-    with open(photo_vip, "rb") as photo:
-        await bot.send_photo(cq.from_user.id, photo, caption=caption_vip, parse_mode="Markdown")
+    f_vip = input_file_safe(photo_vip)
+    if f_vip:
+        await bot.send_photo(cq.from_user.id, photo=f_vip, caption=caption_vip, parse_mode=ParseMode.MARKDOWN)
+    else:
+        await bot.send_message(cq.from_user.id, caption_vip, parse_mode=ParseMode.MARKDOWN)
 
     # 2️⃣ Текст + картинка (онлайн)
-    photo_online = "images/online_clients.jpg"
+    photo_online = IMAGES_DIR / "online_clients.jpg"
     caption_online = (
         "Если клиент сейчас онлайн — это лучший момент для рассылки 💬\n\n"
         "Шанс получить ответ выше, поэтому цепляйся за его ник или аватар — это уже элемент персонализации.\n\n"
-        "Если ты уже пробовал такой подход раньше — не беда, просто заходи с другой стороны.\n\n"
         "Пример:\n\n"
-        "“Я точно нашла тебя вне сайта! Хотя после часа поисков руки опустились… Таких ников слишком много 😪 "
-        "А мне правда важно быть на связи с фанатами, как ты ❤️”\n\n"
-        "Здесь мы:\n"
-        "🔹 Заманили ярким началом\n"
-        "🔹 Объяснили, почему 'искали'\n"
-        "🔹 Ушли от темы мессенджеров — ведь фанаты важны нам именно здесь."
+        "“Я точно нашла тебя вне сайта! Хотя после часа поисков руки опустились… Таких ников слишком много 😪 " 
+        "А мне правда важно быть на связи с фанатами, как ты ❤️”"
     )
-    with open(photo_online, "rb") as photo:
-        await bot.send_photo(cq.from_user.id, photo, caption=caption_online)
+    f_online = input_file_safe(photo_online)
+    if f_online:
+        await bot.send_photo(cq.from_user.id, photo=f_online, caption=caption_online)
+    else:
+        await bot.send_message(cq.from_user.id, caption_online)
 
-    # 3️⃣ Текст + картинка + кнопки
-    photo_mass = "images/mass_message.jpg"
+    # 3️⃣ Текст + картинка + кнопки (mass)
+    photo_mass = IMAGES_DIR / "mass_message.jpg"
     caption_mass = (
         "Массовая рассылка летит всем, поэтому её нужно строить так, чтобы зацепить любого, "
         "но не отпугнуть тех, с кем ты уже общался(-ась) 📝\n\n"
-        "Темы могут быть любые — от бытового до лёгкой эротики, но без перебора, чтобы не скатиться "
-        "в образ «ещё одной шлюхи» ☝️\n\n"
-        "Если не хватает фантазии — обратись к новостям:\n\n"
-        "“БОЛЬШОЙ крах банка! Слышал? Один из крупнейших банков США обанкротился. Надеюсь, тебя это не задело 🤞”\n\n"
-        "Либо же с уклоном в эротику:\n\n"
-        "\"Ur fingers been here b4? 😏 Just wonderin’...\" + фото модели\n"
-        "(Ваши пальцы уже были здесь? 😏 Просто интересно)\n\n"
-        "Фан сможет увидеть до *25 символов* в списке чатов, поэтому старайся в эти 25 символов "
-        "вставить самую «байтовую» часть своего сообщения 💥"
+        "Фан сможет увидеть до *25 символов* в списке чатов, поэтому ставь в начало самое важное."
     )
-
     kb_mass = InlineKeyboardMarkup(row_width=2).add(
         InlineKeyboardButton("😏 Я всё понял", callback_data="understood"),
         InlineKeyboardButton("☝️ Можно ещё информацию?", callback_data="more_info")
     )
+    f_mass = input_file_safe(photo_mass)
+    if f_mass:
+        await bot.send_photo(cq.from_user.id, photo=f_mass, caption=caption_mass, parse_mode=ParseMode.MARKDOWN, reply_markup=kb_mass)
+    else:
+        await bot.send_message(cq.from_user.id, caption_mass, parse_mode=ParseMode.MARKDOWN, reply_markup=kb_mass)
 
-    with open(photo_mass, "rb") as photo:
-        await bot.send_photo(cq.from_user.id, photo, caption=caption_mass, parse_mode="Markdown", reply_markup=kb_mass)
 
 @dp.callback_query_handler(lambda c: c.data == "questions_start")
 async def cb_questions_start(cq: types.CallbackQuery):
-    await cq.answer()
+    await safe_answer(cq)
     uid = cq.from_user.id
     kb = InlineKeyboardMarkup(row_width=2).add(
         InlineKeyboardButton("🌟ПО", callback_data="soft_first"),
@@ -378,7 +393,7 @@ async def cb_questions_start(cq: types.CallbackQuery):
 
 @dp.callback_query_handler(lambda c: c.data == "teamwork_first")
 async def teamwork_first(callback: types.CallbackQuery):
-    await callback.answer()
+    await safe_answer(callback)
     text = (
         "🤝 Командная работа — основа успеха, особенно в нашей сфере.\n\n"
         "Вот несколько простых правил:\n"
@@ -391,12 +406,16 @@ async def teamwork_first(callback: types.CallbackQuery):
     kb = InlineKeyboardMarkup().add(
         InlineKeyboardButton("🟩 А теперь поговорим о ПО", callback_data="soft_second")
     )
-    await callback.message.edit_text(text, reply_markup=kb)
+    # редактируем сообщение, если возможно — если нет, отправляем новое
+    try:
+        await callback.message.edit_text(text, reply_markup=kb)
+    except Exception:
+        await bot.send_message(callback.from_user.id, text, reply_markup=kb)
 
 
 @dp.callback_query_handler(lambda c: c.data == "soft_first")
 async def soft_first(callback: types.CallbackQuery):
-    await callback.answer()
+    await safe_answer(callback)
     text = (
         "🟩 Для работы мы используем Onlymonster.\n\n"
         "💻 Скачай: https://onlymonster.ai/downloads\n"
@@ -406,12 +425,15 @@ async def soft_first(callback: types.CallbackQuery):
     kb = InlineKeyboardMarkup().add(
         InlineKeyboardButton("🤝 А теперь поговорим о команде", callback_data="teamwork_second")
     )
-    await callback.message.edit_text(text, reply_markup=kb)
+    try:
+        await callback.message.edit_text(text, reply_markup=kb)
+    except Exception:
+        await bot.send_message(callback.from_user.id, text, reply_markup=kb)
 
 
 @dp.callback_query_handler(lambda c: c.data == "soft_second")
 async def soft_second(callback: types.CallbackQuery):
-    await callback.answer()
+    await safe_answer(callback)
     text = (
         "🟩 Onlymonster — наш браузер для работы на странице.\n\n"
         "💻 Скачай: https://onlymonster.ai/downloads\n\n"
@@ -421,12 +443,15 @@ async def soft_second(callback: types.CallbackQuery):
     kb = InlineKeyboardMarkup().add(
         InlineKeyboardButton("➡️ Дальше", callback_data="final_question")
     )
-    await callback.message.edit_text(text, reply_markup=kb)
+    try:
+        await callback.message.edit_text(text, reply_markup=kb)
+    except Exception:
+        await bot.send_message(callback.from_user.id, text, reply_markup=kb)
 
 
 @dp.callback_query_handler(lambda c: c.data == "teamwork_second")
 async def teamwork_second(callback: types.CallbackQuery):
-    await callback.answer()
+    await safe_answer(callback)
     text = (
         "🤝 Командная работа — ключ к успеху.\n\n"
         "🔹 Доверие\n🔹 Общение\n🔹 Понимание ролей\n🔹 Совместное развитие\n\n"
@@ -435,16 +460,25 @@ async def teamwork_second(callback: types.CallbackQuery):
     kb = InlineKeyboardMarkup().add(
         InlineKeyboardButton("➡️ Дальше", callback_data="final_question")
     )
-    await callback.message.edit_text(text, reply_markup=kb)
+    try:
+        await callback.message.edit_text(text, reply_markup=kb)
+    except Exception:
+        await bot.send_message(callback.from_user.id, text, reply_markup=kb)
 
 
 @dp.callback_query_handler(lambda c: c.data == "final_question")
 async def final_question(callback: types.CallbackQuery):
-    await callback.answer()
-    await callback.message.edit_text(
-        "А теперь быстрый вопрос, чтобы проверить, как ты усвоил материал:\n\n"
-        "🙋 Куда нужно записывать балансы за начало и конец смены?"
-    )
+    await safe_answer(callback)
+    try:
+        await callback.message.edit_text(
+            "А теперь быстрый вопрос, чтобы проверить, как ты усвоил материал:\n\n"
+            "🙋 Куда нужно записывать балансы за начало и конец смены?"
+        )
+    except Exception:
+        await bot.send_message(callback.from_user.id,
+            "А теперь быстрый вопрос, чтобы проверить, как ты усвоил материал:\n\n"
+            "🙋 Куда нужно записывать балансы за начало и конец смены?"
+        )
 
 
 # ======================== Webhook startup/shutdown ========================
@@ -454,7 +488,7 @@ async def on_startup(dp: Dispatcher):
         await bot.delete_webhook()
         logger.info("Old webhook deleted.")
     except Exception:
-        logger.exception("Error deleting old webhook.")
+        logger.debug("No previous webhook or failed to delete (ignored).")
     await bot.set_webhook(WEBHOOK_URL)
     logger.info(f"Webhook set to {WEBHOOK_URL}")
 
@@ -464,8 +498,11 @@ async def on_shutdown(dp: Dispatcher):
     try:
         await bot.delete_webhook()
     except Exception:
-        logger.exception("Error removing webhook")
-    await bot.session.close()
+        logger.debug("Webhook deletion on shutdown failed (ignored).")
+    try:
+        await bot.session.close()
+    except Exception:
+        logger.debug("bot.session.close() failed (ignored).")
 
 
 if __name__ == "__main__":
