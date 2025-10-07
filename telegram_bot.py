@@ -6,7 +6,7 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import (
-    InlineKeyboardMarkup, InlineKeyboardButton, InputFi3le, ParseMode
+    InlineKeyboardMarkup, InlineKeyboardButton, InputFile, ParseMode
 )
 from dotenv import load_dotenv
 from urllib.parse import urlparse
