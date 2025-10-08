@@ -180,9 +180,9 @@ async def process_name(message: types.Message, state: FSMContext):
     await Form.waiting_for_onlyfans.set()
 
 
-# --- Обработка нажатий на кнопки ---
 @dp.callback_query_handler(lambda c: c.data in ["onlyfans_yes", "onlyfans_no"], state=Form.waiting_for_onlyfans)
 async def process_onlyfans_inline(callback_query: types.CallbackQuery, state: FSMContext):
+    await callback_query.answer()  # ← ВАЖНО: останавливает дублирование
     data = await state.get_data()
     name = data.get("name", "друг")
 
@@ -201,7 +201,7 @@ async def process_onlyfans_inline(callback_query: types.CallbackQuery, state: FS
         "Оборот платформы — десятки миллиардов долларов в год, а владелец получает миллиардные дивиденды, так что вопрос с деньгами тут же и закроем. Деньги здесь есть. И их много.\n\n"
         "Наша задача — может и не гнаться за всем пирогом🥧, а отрезать себе действительно достойный кусок💸"
     )
-    await send_photo_with_fallback(message.chat.id, photo_onlyfans, caption1, parse_mode=ParseMode.MARKDOWN)
+    await send_photo_with_fallback(callback_query.message.chat.id, photo_onlyfans, caption1, parse_mode=ParseMode.MARKDOWN)
 
     # second block with inline "Дальше"
     text2 = (
@@ -212,7 +212,7 @@ async def process_onlyfans_inline(callback_query: types.CallbackQuery, state: FS
         "Ладно, хватит лирики — поехали дальше! 💥"
     )
     kb_next = InlineKeyboardMarkup().add(InlineKeyboardButton("➡️ Дальше", callback_data="of_next_1"))
-    await bot.send_message(message.chat.id, text2, reply_markup=kb_next)
+    await bot.send_message(callback_query.message.chat.id, text2, reply_markup=kb_next)
 
 
 @dp.callback_query_handler(lambda c: c.data == "of_next_1")
