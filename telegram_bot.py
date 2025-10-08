@@ -143,27 +143,6 @@ async def process_name(message: types.Message, state: FSMContext):
     name = message.text.strip()
     await state.update_data(name=name)
 
-    # Inline buttons instead of plain text answers
-    keyboard = types.InlineKeyboardMarkup()
-    keyboard.add(
-        types.InlineKeyboardButton("✅ Да", callback_data="onlyfans_yes"),
-        types.InlineKeyboardButton("❌ Нет", callback_data="onlyfans_no")
-    )
-
-    await bot.send_message(
-        message.chat.id,
-        f"Красивое имя, {name}! 🌟\n\n{name}, ты знаком(-а) с работой на OnlyFans?",
-        reply_markup=keyboard
-    )
-    await Form.waiting_for_onlyfans.set()
-
-
-# --- Receive name ---
-@dp.message_handler(state=Form.waiting_for_name, content_types=types.ContentTypes.TEXT)
-async def process_name(message: types.Message, state: FSMContext):
-    name = message.text.strip()
-    await state.update_data(name=name)
-
     # Создаём инлайн-кнопки
     keyboard = types.InlineKeyboardMarkup()
     keyboard.add(
