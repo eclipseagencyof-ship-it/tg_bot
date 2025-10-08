@@ -161,7 +161,7 @@ async def process_name(message: types.Message, state: FSMContext):
 
 @dp.callback_query_handler(lambda c: c.data in ["onlyfans_yes", "onlyfans_no"], state=Form.waiting_for_onlyfans)
 async def process_onlyfans_inline(callback_query: types.CallbackQuery, state: FSMContext):
-    await callback_query.answer()  # ← ВАЖНО: останавливает дублирование
+    await callback_query.answer()
     data = await state.get_data()
     name = data.get("name", "друг")
 
@@ -170,7 +170,7 @@ async def process_onlyfans_inline(callback_query: types.CallbackQuery, state: FS
     else:
         await bot.send_message(callback_query.message.chat.id, f"Ничего страшного, {name}, я всё объясню с нуля 😉")
 
-    # continue the flow: send OnlyFans intro blocks (images from images/)
+    # Отправляем блок с фото
     photo_onlyfans = IMAGES_DIR / "onlyfans_intro.jpg"
     caption1 = (
         "*OnlyFans* — это пространство, куда приходят люди за чувственным и эмоциональным контактом.\n\n"
@@ -182,7 +182,7 @@ async def process_onlyfans_inline(callback_query: types.CallbackQuery, state: FS
     )
     await send_photo_with_fallback(callback_query.message.chat.id, photo_onlyfans, caption1, parse_mode=ParseMode.MARKDOWN)
 
-    # second block with inline "Дальше"
+    # Второй блок + кнопка "Дальше"
     text2 = (
         "Прежде чем начать обучение — запомни главное: ты не просто продаёшь контент, ты даришь людям ощущение счастья 📌\n\n"
         "С таким подходом ты не только обойдёшь конкурентов, но и почувствуешь настоящую ценность своей работы 🤙\n\n"
@@ -192,6 +192,10 @@ async def process_onlyfans_inline(callback_query: types.CallbackQuery, state: FS
     )
     kb_next = InlineKeyboardMarkup().add(InlineKeyboardButton("➡️ Дальше", callback_data="of_next_1"))
     await bot.send_message(callback_query.message.chat.id, text2, reply_markup=kb_next)
+
+    # 💡 Завершаем состояние, чтобы кнопки дальше работали
+    await state.finish()
+
 
 
 @dp.callback_query_handler(lambda c: c.data == "of_next_1")
