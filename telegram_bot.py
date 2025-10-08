@@ -189,7 +189,7 @@ async def process_onlyfans_inline(callback_query: types.CallbackQuery, state: FS
     if callback_query.data == "onlyfans_yes":
         await bot.send_message(callback_query.message.chat.id, f"Отлично, {name}! Тогда двигаться дальше будет проще ✅")
     else:
-        await bot.send_message(callback_query.message.chat.id, f"Ничего страшного, {name}, я всё объясню с нуля 😉
+        await bot.send_message(callback_query.message.chat.id, f"Ничего страшного, {name}, я всё объясню с нуля 😉")
 
     # continue the flow: send OnlyFans intro blocks (images from images/)
     photo_onlyfans = IMAGES_DIR / "onlyfans_intro.jpg"
