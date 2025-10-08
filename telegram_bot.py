@@ -143,28 +143,53 @@ async def process_name(message: types.Message, state: FSMContext):
     name = message.text.strip()
     await state.update_data(name=name)
 
-    # Ask OnlyFans knowledge as plain text (no reply keyboard). User should reply "Да" or "Нет" as text.
-    await bot.send_message(message.chat.id, f"Красивое имя, {name}! 🌟\n\n{name}, ты знаком(-а) с работой на OnlyFans?\n\n(ответь 'Да' или 'Нет')")
+    # Inline buttons instead of plain text answers
+    keyboard = types.InlineKeyboardMarkup()
+    keyboard.add(
+        types.InlineKeyboardButton("✅ Да", callback_data="onlyfans_yes"),
+        types.InlineKeyboardButton("❌ Нет", callback_data="onlyfans_no")
+    )
+
+    await bot.send_message(
+        message.chat.id,
+        f"Красивое имя, {name}! 🌟\n\n{name}, ты знаком(-а) с работой на OnlyFans?",
+        reply_markup=keyboard
+    )
     await Form.waiting_for_onlyfans.set()
 
 
-# --- Handle OnlyFans answer as text (removes pointless keyboard buttons) ---
-@dp.message_handler(state=Form.waiting_for_onlyfans, content_types=types.ContentTypes.TEXT)
-async def process_onlyfans_text(message: types.Message, state: FSMContext):
-    answer = message.text.strip().lower()
+# --- Receive name ---
+@dp.message_handler(state=Form.waiting_for_name, content_types=types.ContentTypes.TEXT)
+async def process_name(message: types.Message, state: FSMContext):
+    name = message.text.strip()
+    await state.update_data(name=name)
+
+    # Создаём инлайн-кнопки
+    keyboard = types.InlineKeyboardMarkup()
+    keyboard.add(
+        types.InlineKeyboardButton("✅ Да", callback_data="onlyfans_yes"),
+        types.InlineKeyboardButton("❌ Нет", callback_data="onlyfans_no")
+    )
+
+    # Отправляем сообщение с кнопками
+    await bot.send_message(
+        message.chat.id,
+        f"Красивое имя, {name}! 🌟\n\n{name}, ты знаком(-а) с работой на OnlyFans?",
+        reply_markup=keyboard
+    )
+    await Form.waiting_for_onlyfans.set()
+
+
+# --- Обработка нажатий на кнопки ---
+@dp.callback_query_handler(lambda c: c.data in ["onlyfans_yes", "onlyfans_no"], state=Form.waiting_for_onlyfans)
+async def process_onlyfans_inline(callback_query: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     name = data.get("name", "друг")
 
-    if answer.startswith("да"):
-        await bot.send_message(message.chat.id, f"Отлично, {name}! Тогда двигаться дальше будет проще ✅")
-    elif answer.startswith("нет"):
-        await bot.send_message(message.chat.id, f"Ничего страшного, {name}, я всё объясню с нуля 😉")
+    if callback_query.data == "onlyfans_yes":
+        await bot.send_message(callback_query.message.chat.id, f"Отлично, {name}! Тогда двигаться дальше будет проще ✅")
     else:
-        # If answer is unexpected, gently remind allowed answers and stay in state
-        await bot.send_message(message.chat.id, "Пожалуйста, ответь 'Да' или 'Нет'.")
-        return
-
-    await state.finish()
+        await bot.send_message(callback_query.message.chat.id, f"Ничего страшного, {name}, я всё объясню с нуля 😉
 
     # continue the flow: send OnlyFans intro blocks (images from images/)
     photo_onlyfans = IMAGES_DIR / "onlyfans_intro.jpg"
@@ -190,12 +215,11 @@ async def process_onlyfans_text(message: types.Message, state: FSMContext):
     await bot.send_message(message.chat.id, text2, reply_markup=kb_next)
 
 
-# --- of_next_1 ---
 @dp.callback_query_handler(lambda c: c.data == "of_next_1")
 async def of_next_1(cq: types.CallbackQuery):
-    await safe_answer(cq)
+    await cq.answer()
 
-    photo_of_people = IMAGES_DIR / "of_people.jpg"
+    photo_path = IMAGES_DIR / "of_people.jpg"
     caption2 = (
         "🖼 Многие приходят в Adult-индустрию ради заработка, но забывают о главном — о людях по ту сторону экрана 🥲\n\n"
         "В интернете побеждает тот, кто отдаёт больше: не контента, а внимания и понимания.\n\n"
@@ -206,7 +230,26 @@ async def of_next_1(cq: types.CallbackQuery):
         "Сделай жизнь клиента чуть ярче, и он точно это оценит 😉"
     )
     kb_next2 = InlineKeyboardMarkup().add(InlineKeyboardButton("➡️ Дальше", callback_data="of_next_2"))
-    await send_photo_with_fallback(cq.from_user.id, photo_of_people, caption=caption2, reply_markup=kb_next2, parse_mode=ParseMode.MARKDOWN)
+
+    # безопасная отправка фото (исправление ошибки Photo_invalid_dimensions)
+    try:
+        with open(photo_path, "rb") as photo:
+            await bot.send_photo(
+                cq.from_user.id,
+                photo=photo,
+                caption=caption2,
+                reply_markup=kb_next2,
+                parse_mode=ParseMode.MARKDOWN,
+            )
+    except Exception as e:
+        # если фото не открылось, просто шлём текст
+        await bot.send_message(
+            cq.from_user.id,
+            caption2,
+            reply_markup=kb_next2,
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        print("⚠️ Ошибка отправки фото:", e)
 
 
 # --- of_next_2 ---
