@@ -213,6 +213,17 @@ async def of_next_1(cq: types.CallbackQuery):
         "Сделай жизнь клиента чуть ярче, и он точно это оценит 😉"
     )
     kb_next2 = InlineKeyboardMarkup().add(InlineKeyboardButton("➡️ Дальше", callback_data="of_next_2"))
+ await bot.send_message(callback_query.message.chat.id, caption2, reply_markup=kb_next2)
+
+    # 💡 Завершаем состояние, чтобы кнопки дальше работали
+    await state.finish()
+
+
+
+@dp.callback_query_handler(lambda c: c.data == "of_next_2")
+async def of_next_2(cq: types.CallbackQuery):
+    await cq.answer()
+
 
     # безопасная отправка фото (исправление ошибки Photo_invalid_dimensions)
     try:
