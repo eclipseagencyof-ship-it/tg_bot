@@ -182,7 +182,11 @@ async def process_onlyfans_inline(callback_query: types.CallbackQuery, state: FS
     )
     await send_photo_with_fallback(callback_query.message.chat.id, photo_onlyfans, caption1, parse_mode=ParseMode.MARKDOWN)
 
-    # Второй блок + кнопка "Дальше"
+    # --- Второй блок + кнопка "Дальше" ---
+@dp.callback_query_handler(lambda c: c.data == "of_next")
+async def of_next(cq: types.CallbackQuery, state: FSMContext):
+    await cq.answer()
+
     text2 = (
         "Прежде чем начать обучение — запомни главное: ты не просто продаёшь контент, ты даришь людям ощущение счастья 📌\n\n"
         "С таким подходом ты не только обойдёшь конкурентов, но и почувствуешь настоящую ценность своей работы 🤙\n\n"
@@ -190,16 +194,20 @@ async def process_onlyfans_inline(callback_query: types.CallbackQuery, state: FS
         "Мы не можем дать им физическую любовь, но можем подарить им близость, страсть… ну и, конечно, нюдсы 😏\n\n"
         "Ладно, хватит лирики — поехали дальше! 💥"
     )
-    kb_next = InlineKeyboardMarkup().add(InlineKeyboardButton("➡️ Дальше", callback_data="of_next_1"))
-    await bot.send_message(callback_query.message.chat.id, text2, reply_markup=kb_next)
+
+    kb_next = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("➡️ Дальше", callback_data="of_next_1")
+    )
+
+    await bot.send_message(cq.from_user.id, text2, reply_markup=kb_next)
 
     # 💡 Завершаем состояние, чтобы кнопки дальше работали
     await state.finish()
 
 
-
+# --- Следующий блок ---
 @dp.callback_query_handler(lambda c: c.data == "of_next_1")
-async def of_next_1(cq: types.CallbackQuery):
+async def of_next_1(cq: types.CallbackQuery, state: FSMContext):
     await cq.answer()
 
     photo_path = IMAGES_DIR / "of_people.jpg"
@@ -212,17 +220,17 @@ async def of_next_1(cq: types.CallbackQuery):
         "Понимание потребностей и индивидуальный подход — вот что приносит настоящие деньги 💸\n\n"
         "Сделай жизнь клиента чуть ярче, и он точно это оценит 😉"
     )
-    kb_next2 = InlineKeyboardMarkup().add(InlineKeyboardButton("➡️ Дальше", callback_data="of_next_2"))
- await bot.send_message(callback_query.message.chat.id, caption2, reply_markup=kb_next2)
+
+    kb_next2 = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("➡️ Дальше", callback_data="of_next_2")
+    )
+
+    await bot.send_message(cq.from_user.id, caption2, reply_markup=kb_next2)
 
     # 💡 Завершаем состояние, чтобы кнопки дальше работали
     await state.finish()
 
 
-
-@dp.callback_query_handler(lambda c: c.data == "of_next_2")
-async def of_next_2(cq: types.CallbackQuery):
-    await cq.answer()
 
 
     # безопасная отправка фото (исправление ошибки Photo_invalid_dimensions)
