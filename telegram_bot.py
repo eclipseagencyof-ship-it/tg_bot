@@ -306,9 +306,8 @@ async def find_clients_info(cq: types.CallbackQuery):
     )
     await bot.send_message(cq.from_user.id, text2)
 
-  # --- Рассылка с кнопкой ---
-
-@dp.callback_query_handler(lambda c: c.data == "of_next_3")  # или любое другое предыдущее состояние
+ # --- Рассылка с кнопкой ---
+@dp.callback_query_handler(lambda c: c.data == "of_next_3")  # можешь поменять на нужный callback
 async def send_diff_intro(cq: types.CallbackQuery):
     await safe_answer(cq)
 
