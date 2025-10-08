@@ -1,6 +1,7 @@
 # telegram_bot.py
 import logging
 import os
+import asyncio
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -46,6 +47,7 @@ class Form(StatesGroup):
     waiting_for_name = State()
     waiting_for_onlyfans = State()
     quiz_waiting_answer = State()
+    waiting_for_question_1 = State()
 
 # --- Helpers ---
 def input_file_safe(path: Path | str):
@@ -66,7 +68,8 @@ async def safe_answer(cq: types.CallbackQuery):
     except Exception as e:
         logger.exception("Unexpected error in cq.answer(): %s", e)
 
-async def send_photo_with_fallback(chat_id: int, photo_path: Path | str, caption: str = None, reply_markup: InlineKeyboardMarkup | None = None, parse_mode: str | None = None):
+async def send_photo_with_fallback(chat_id: int, photo_path: Path | str, caption: str = None,
+                                   reply_markup: InlineKeyboardMarkup | None = None, parse_mode: str | None = None):
     """
     Try to send as photo. If Telegram rejects with PhotoDimensions, send as document instead.
     If file not found, fallback to send_message.
@@ -88,6 +91,7 @@ async def send_photo_with_fallback(chat_id: int, photo_path: Path | str, caption
     except TelegramAPIError as e:
         logger.exception("Telegram API error while sending photo: %s", e)
         await bot.send_message(chat_id, caption or "", reply_markup=reply_markup, parse_mode=parse_mode)
+
 
 # ---------------- HANDLERS / FLOWS ----------------
 
@@ -128,8 +132,8 @@ async def cb_agree_conditions(cq: types.CallbackQuery):
 
     warning_text = (
         "❗️Обрати внимание: Условие ниже не распространяется на стажировочный период (7 дней)!\n\n"
-        "Если ты решишь завершить сотрудничество, потребуется отработать не более 7 дней "
-        "с момента уведомления администратора."
+        "Если ты решишь завершить сотрудничество, потребуется отработать не более 7 дней с момента уведомления администратора.\n\n"
+        "На практике это занимает 1–3 дня, пока мы найдём замену на твою позицию."
     )
     # send warning text and then a separate prompt asking name — bot should wait for a reply
     await bot.send_message(cq.from_user.id, warning_text)
@@ -153,15 +157,16 @@ async def process_name(message: types.Message, state: FSMContext):
     # Отправляем сообщение с кнопками
     await bot.send_message(
         message.chat.id,
-        f"Красивое имя, {name}! 🌟\n\n{name}, ты знаком(-а) с работой на OnlyFans?",
+        f"Красивое имя! 🌟\n\n{name}, ты знаком(-а) с работой на OnlyFans?",
         reply_markup=keyboard
     )
     await Form.waiting_for_onlyfans.set()
 
 
+# --- Обработка нажатий Да/Нет ---
 @dp.callback_query_handler(lambda c: c.data in ["onlyfans_yes", "onlyfans_no"], state=Form.waiting_for_onlyfans)
 async def process_onlyfans_inline(callback_query: types.CallbackQuery, state: FSMContext):
-    await callback_query.answer()
+    await safe_answer(callback_query)
     data = await state.get_data()
     name = data.get("name", "друг")
 
@@ -169,6 +174,9 @@ async def process_onlyfans_inline(callback_query: types.CallbackQuery, state: FS
         await bot.send_message(callback_query.message.chat.id, f"Отлично, {name}! Тогда двигаться дальше будет проще ✅")
     else:
         await bot.send_message(callback_query.message.chat.id, f"Ничего страшного, {name}, я всё объясню с нуля 😉")
+
+    # Завершаем состояние
+    await state.finish()
 
     # Отправляем блок с фото
     photo_onlyfans = IMAGES_DIR / "onlyfans_intro.jpg"
@@ -182,11 +190,7 @@ async def process_onlyfans_inline(callback_query: types.CallbackQuery, state: FS
     )
     await send_photo_with_fallback(callback_query.message.chat.id, photo_onlyfans, caption1, parse_mode=ParseMode.MARKDOWN)
 
-    # --- Второй блок + кнопка "Дальше" ---
-@dp.callback_query_handler(lambda c: c.data == "of_next")
-async def of_next(cq: types.CallbackQuery, state: FSMContext):
-    await cq.answer()
-
+    # --- Второй блок + кнопка "Дальше" (посылается сразу после картинки)
     text2 = (
         "Прежде чем начать обучение — запомни главное: ты не просто продаёшь контент, ты даришь людям ощущение счастья 📌\n\n"
         "С таким подходом ты не только обойдёшь конкурентов, но и почувствуешь настоящую ценность своей работы 🤙\n\n"
@@ -194,21 +198,14 @@ async def of_next(cq: types.CallbackQuery, state: FSMContext):
         "Мы не можем дать им физическую любовь, но можем подарить им близость, страсть… ну и, конечно, нюдсы 😏\n\n"
         "Ладно, хватит лирики — поехали дальше! 💥"
     )
-
-    kb_next = InlineKeyboardMarkup().add(
-        InlineKeyboardButton("➡️ Дальше", callback_data="of_next_1")
-    )
-
-    await bot.send_message(cq.from_user.id, text2, reply_markup=kb_next)
-
-    # 💡 Завершаем состояние, чтобы кнопки дальше работали
-    await state.finish()
+    kb_next = InlineKeyboardMarkup().add(InlineKeyboardButton("➡️ Дальше", callback_data="of_next_1"))
+    await bot.send_message(callback_query.message.chat.id, text2, reply_markup=kb_next)
 
 
-# --- Следующий блок ---
+# --- of_next_1: показываем картинку + кнопка дальше ---
 @dp.callback_query_handler(lambda c: c.data == "of_next_1")
-async def of_next_1(cq: types.CallbackQuery, state: FSMContext):
-    await cq.answer()
+async def of_next_1(cq: types.CallbackQuery):
+    await safe_answer(cq)
 
     photo_path = IMAGES_DIR / "of_people.jpg"
     caption2 = (
@@ -220,44 +217,14 @@ async def of_next_1(cq: types.CallbackQuery, state: FSMContext):
         "Понимание потребностей и индивидуальный подход — вот что приносит настоящие деньги 💸\n\n"
         "Сделай жизнь клиента чуть ярче, и он точно это оценит 😉"
     )
-
-    kb_next2 = InlineKeyboardMarkup().add(
-        InlineKeyboardButton("➡️ Дальше", callback_data="of_next_2")
-    )
-
-    await bot.send_message(cq.from_user.id, caption2, reply_markup=kb_next2)
-
-    # 💡 Завершаем состояние, чтобы кнопки дальше работали
-    await state.finish()
+    kb_next2 = InlineKeyboardMarkup().add(InlineKeyboardButton("➡️ Дальше", callback_data="of_next_2"))
+    await send_photo_with_fallback(cq.from_user.id, photo_path, caption=caption2, reply_markup=kb_next2, parse_mode=ParseMode.MARKDOWN)
 
 
-
-
-    # безопасная отправка фото (исправление ошибки Photo_invalid_dimensions)
-    try:
-        with open(photo_path, "rb") as photo:
-            await bot.send_photo(
-                cq.from_user.id,
-                photo=photo,
-                caption=caption2,
-                reply_markup=kb_next2,
-                parse_mode=ParseMode.MARKDOWN,
-            )
-    except Exception as e:
-        # если фото не открылось, просто шлём текст
-        await bot.send_message(
-            cq.from_user.id,
-            caption2,
-            reply_markup=kb_next2,
-            parse_mode=ParseMode.MARKDOWN,
-        )
-        print("⚠️ Ошибка отправки фото:", e)
-
-
-# --- Блок "⭐ А как заработать? ⭐" ---
-@dp.callback_query_handler(lambda c: c.data == "earn")
-async def earn_info(cq: types.CallbackQuery):
-    await cq.answer(cache_time=1)
+# --- of_next_2: текст + кнопка "А как заработать?" ---
+@dp.callback_query_handler(lambda c: c.data == "of_next_2")
+async def of_next_2(cq: types.CallbackQuery):
+    await safe_answer(cq)
 
     text4 = (
         "Если хочешь зарабатывать стабильно, а не сжечь аудиторию ради быстрого профита — "
@@ -266,42 +233,38 @@ async def earn_info(cq: types.CallbackQuery):
         "Понимание потребностей и индивидуальный подход — вот путь к большим деньгам 💸\n\n"
         "Сделай жизнь клиента чуточку лучше — и он точно это оценит 😉"
     )
-    kb_earn = InlineKeyboardMarkup().add(
-        InlineKeyboardButton("⭐ А как заработать? ⭐", callback_data="how_to_earn")
-    )
+    kb_earn = InlineKeyboardMarkup().add(InlineKeyboardButton("⭐ А как заработать? ⭐", callback_data="how_to_earn"))
     await bot.send_message(cq.from_user.id, text4, reply_markup=kb_earn)
+
 
 # --- how_to_earn ---
 @dp.callback_query_handler(lambda c: c.data == "how_to_earn")
 async def how_to_earn_info(cq: types.CallbackQuery):
     # быстрый ответ callback, чтобы Telegram не подвис
-    await cq.answer(cache_time=1)
+    await safe_answer(cq)
 
     # Отправляем три последовательных блока текста
     await bot.send_message(
         cq.from_user.id,
-       "Ещё со времён брачных агентств я научился мгновенно находить контакт и превращать любую деталь в точку опоры для продажи. Ты спросишь как?\n\n"
-       "Все просто\n\n"
-       "Узнал имя? — загуглил интересные факты.\n\n"
-       "Еще и фамилию?— нашёл фото, закинул шутку: «Это не ты гонял на байке в Бруклине?»\n\n"
-       "Фан рассказал где живет? — изучаю местные фишки, подбираю тему для диалога.\n\n"
-       "Фанат NBA? — спрашиваю про любимую команду и продолжаю разговор на знакомой волне.\n\n"
-       "Любая мелочь — повод для сближения, если цель не просто продать, а завоевать доверие. Ведь, как и в любви, по-настоящему вовлекает тот, кто цепляет чем-то личным"
+        "Ещё со времён брачных агентств я научился мгновенно находить контакт и превращать любую деталь в точку опоры для продажи. Ты спросишь как?\n\n"
+        "Все просто\n\n"
+        "Узнал имя? — загуглил интересные факты.\n\n"
+        "Еще и фамилию?— нашёл фото, закинул шутку: «Это не ты гонял на байке в Бруклине?»\n\n"
+        "Фан рассказал где живет? — изучаю местные фишки, подбираю тему для диалога.\n\n"
+        "Фанат NBA? — спрашиваю про любимую команду и продолжаю разговор на знакомой волне.\n\n"
+        "Любая мелочь — повод для сближения, если цель не просто продать, а завоевать доверие. Ведь, как и в любви, по-настоящему вовлекает тот, кто цепляет чем-то личным"
     )
 
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(0.4)
 
     await bot.send_message(
         cq.from_user.id,
-        
-"Ты будешь создавать сотни историй отношений между моделью и клиентом 🙌\n\n"
-"У каждого клиента свой интерес — твоя задача предложить то, от чего он не сможет отказаться.\n\n"
-"Из этого формула продажи очень проста:\n\n"
-"На основе собранной информации понимаешь чего хочет фан + давишь на это во время продажи = прибыль 📈"
-
+        "Ты будешь создавать сотни историй отношений между моделью и клиентом 🙌\n\n"
+        "У каждого клиента свой интерес — твоя задача предложить то, от чего он не сможет отказаться.\n\n"
+        "Формула проста:\nИнфо о фанате + верное предложение = прибыль 📈"
     )
 
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(0.4)
 
     kb_clients = InlineKeyboardMarkup().add(
         InlineKeyboardButton("⭐ Где и как искать клиентов? ⭐", callback_data="find_clients")
@@ -316,7 +279,7 @@ async def how_to_earn_info(cq: types.CallbackQuery):
 # --- find_clients ---
 @dp.callback_query_handler(lambda c: c.data == "find_clients")
 async def find_clients_info(cq: types.CallbackQuery):
-    await cq.answer(cache_time=1)
+    await safe_answer(cq)
 
     photo_path = IMAGES_DIR / "find_clients.jpg"
     caption1 = (
@@ -325,7 +288,7 @@ async def find_clients_info(cq: types.CallbackQuery):
         "Добавляй сленг, сокращай, меняй формулировки — главное, чтобы выглядело живо и по-своему.\n\n"
         "Например:\n\n"
         "Hey, do you mind getting to know each other? > Hey! U down to link up to me? 👋😄\n\n"
-        "(Привет, не против узнать друг друга? > Хей! Не хочешь присоединится ко мне?)\n\n" 
+        "(Привет, не против узнать друг друга? > Хей! Не хочешь присоединится ко мне?)\n\n"
         "Are you here for fun or are you looking for something more? > U here 4 fun or lookin’ 4 sumthin’ more? 😄\n\n"
         "(Ты здесь для развлечения или ищешь что-то большее?)"
     )
@@ -333,34 +296,18 @@ async def find_clients_info(cq: types.CallbackQuery):
 
     text2 = (
         "Да, OnlyFans — платформа для откровенного контента, но рассылки не должны быть слишком прямыми или порнографичными 🔞\n\n"
+        "Почему?\n\n"
         "Откровенный спам быстро убивает интерес. Клиенты заносят вас в список «ещё одной шлюхи» — а такие не цепляют и не вызывают желания платить 💸\n\n"
         "Работай тонко: лёгкая эротика, намёки, игра с воображением. Пусть его фантазия доделает остальное 💡"
     )
-    await bot.send_message(cq.from_user.id, text2)
-
- # --- Рассылка с кнопкой ---
-@dp.callback_query_handler(lambda c: c.data == "of_next_3")  # можешь поменять на нужный callback
-async def send_diff_intro(cq: types.CallbackQuery):
-    await safe_answer(cq)
-
-    text3 = (
-        "Мы используем 3 типа рассылок, каждый из которых ориентирован на разную аудиторию. "
-        "Во время смены тебе нужно будет работать по следующей схеме:\n\n"
-        "✔️ VIP — персональные сообщения постоянным клиентам, которые уже покупали контент.\n\n"
-        "✔️ Онлайн — рассылка для тех, кто сейчас в сети.\n\n"
-        "✔️ Массовая — охват всех клиентов страницы, кроме VIP, чтобы не перегружать их.\n\n"
-        "Каждый тип рассылки — это свой подход и шанс на продажу. Работай с умом 💬💸"
-    )
-
     kb_diff = InlineKeyboardMarkup().add(
         InlineKeyboardButton("💡 Зачем нужны разные рассылки?", callback_data="diff_mailings")
     )
+    await bot.send_message(cq.from_user.id, text2)
+    await bot.send_message(cq.from_user.id, "Дальше — про типы рассылок:", reply_markup=kb_diff)
 
-    await bot.send_message(cq.from_user.id, text3, reply_markup=kb_diff)
 
-
-
-# --- diff_mailings ---
+# --- Рассылка: diff_mailings и продолжение ---
 @dp.callback_query_handler(lambda c: c.data == "diff_mailings")
 async def diff_mailings_info(cq: types.CallbackQuery):
     await safe_answer(cq)
@@ -382,7 +329,6 @@ async def diff_mailings_info(cq: types.CallbackQuery):
     await bot.send_message(cq.from_user.id, "Продолжим?", reply_markup=kb_next)
 
 
-# --- diff_online ---
 @dp.callback_query_handler(lambda c: c.data == "diff_online")
 async def diff_online_info(cq: types.CallbackQuery):
     await safe_answer(cq)
@@ -391,7 +337,6 @@ async def diff_online_info(cq: types.CallbackQuery):
     caption_online = (
         "Если клиент сейчас онлайн — это лучший момент для рассылки 💬\n\n"
         "Шанс получить ответ выше, поэтому цепляйся за его ник или аватар — это уже элемент персонализации.\n\n"
-        "Если ты уже пробовал такой подход раньше — не беда, просто заходи с другой стороны.\n\n"
         "Пример:\n\n"
         "“Я точно нашла тебя вне сайта! Хотя после часа поисков руки опустились… Таких ников слишком много 😪 А мне правда важно быть на связи с фанатами, как ты ❤️”\n\n"
         "Здесь мы:\n\n"
@@ -407,7 +352,6 @@ async def diff_online_info(cq: types.CallbackQuery):
     await bot.send_message(cq.from_user.id, "Двигаемся дальше?", reply_markup=kb_next)
 
 
-# --- diff_mass ---
 @dp.callback_query_handler(lambda c: c.data == "diff_mass")
 async def diff_mass_info(cq: types.CallbackQuery):
     await safe_answer(cq)
@@ -432,9 +376,9 @@ async def diff_mass_info(cq: types.CallbackQuery):
     await send_photo_with_fallback(cq.from_user.id, photo_mass, caption=caption_mass, reply_markup=kb_mass)
 
 
-# --- После выбора любой кнопки ---
+# --- После выбора любой кнопки (mailing_done) ---
 @dp.callback_query_handler(lambda c: c.data == "mailing_done")
-async def mailing_done(cq: types.CallbackQuery, state: FSMContext):
+async def mailing_done(cq: types.CallbackQuery):
     await safe_answer(cq)
 
     text4 = (
@@ -476,9 +420,9 @@ async def mailing_done(cq: types.CallbackQuery, state: FSMContext):
     await bot.send_message(cq.from_user.id, text6, reply_markup=kb_next)
 
 
-# --- after_mailing_next ---
+# --- after_mailing_next --- задаём контрольный вопрос и ждём ответ в состоянии waiting_for_question_1
 @dp.callback_query_handler(lambda c: c.data == "after_mailing_next")
-async def after_mailing_next(cq: types.CallbackQuery, state: FSMContext):
+async def after_mailing_next(cq: types.CallbackQuery):
     await safe_answer(cq)
 
     text7 = (
@@ -497,149 +441,16 @@ async def after_mailing_next(cq: types.CallbackQuery, state: FSMContext):
     question = "🙋 На что в первую очередь нужно опираться при общении с клиентами?"
     await bot.send_message(cq.from_user.id, question)
 
-    await state.set_state("waiting_for_question_1")
+    await Form.waiting_for_question_1.set()
 
 
-# === Обработчики меню возражений (содержимое сохранено) ===
-@dp.callback_query_handler(lambda c: c.data == "start_objections")
-async def cb_start_objections(cq: types.CallbackQuery):
-    await safe_answer(cq)
-    kb = InlineKeyboardMarkup(row_width=2)
-    kb.add(
-        InlineKeyboardButton("Это дорого!", callback_data="obj_expensive"),
-        InlineKeyboardButton("Почему я должен верить тебе?", callback_data="obj_trust"),
-        InlineKeyboardButton("А ты не обманешь меня?", callback_data="obj_scam"),
-        InlineKeyboardButton("У меня всего 10$", callback_data="obj_10"),
-        InlineKeyboardButton("Я хочу найти любовь", callback_data="obj_love"),
-        InlineKeyboardButton("Правила платформы", callback_data="obj_rules_platform"),
-        InlineKeyboardButton("Запреты агентства", callback_data="obj_rules_agency"),
-        InlineKeyboardButton("Чек-лист", callback_data="obj_checklist"),
-        InlineKeyboardButton("Пройти тест", callback_data="start_quiz")
-    )
-    text = (
-        "🔥 Топ-5 возражений:\n"
-        "1. Это дорого!\n2. Почему я должен верить тебе?\n3. А ты не обманешь меня?\n4. У меня всего лишь 10$...\n5. Я не хочу ничего покупать, я хочу найти любовь.\n\n"
-        "Выбери пункт, чтобы получить инструменты и ответы:"
-    )
-    await bot.send_message(cq.from_user.id, text, reply_markup=kb)
-
-
-@dp.callback_query_handler(lambda c: c.data == "obj_expensive")
-async def cb_obj_expensive(cq: types.CallbackQuery):
-    await safe_answer(cq)
-    text = (
-        "Если клиент пишет 'Это дорого' — чаще всего нет раппорта, доверия.\n\n"
-        "Контент сам по себе не продаёт. Продаёт — описание и ощущение.\n\n"
-        "Пример слабого ответа:\nМилый, мои два фото поднимут тебе настроение и не только 😏\n\n"
-        "Пример сильного (персональный + сюжет):\n(Имя), на первом фото я буквально обнажилась не только телом, но и душой... ещё и в твоей любимой позе. Угадаешь какая?"
-    )
-    kb = InlineKeyboardMarkup().add(
-        InlineKeyboardButton("Как предлагать варианты?", callback_data="obj_expensive_options"),
-        InlineKeyboardButton("Вернуться", callback_data="start_objections")
-    )
-    await bot.send_message(cq.from_user.id, text, reply_markup=kb)
-
-
-@dp.callback_query_handler(lambda c: c.data == "obj_expensive_options")
-async def cb_obj_expensive_options(cq: types.CallbackQuery):
-    await safe_answer(cq)
-    text = (
-        "💡 Как предлагать варианты:\n\n"
-        "👉 2 фото + видео-дразнилка за $25\n"
-        "👉 2–3 фото за $20\n\n"
-        "Или мягкая провокация: 'Мне нравится с тобой общаться, поэтому дам выбор: что выбираешь?'"
-    )
-    kb = InlineKeyboardMarkup().add(InlineKeyboardButton("Вернуться", callback_data="start_objections"))
-    await bot.send_message(cq.from_user.id, text, reply_markup=kb)
-
-
-@dp.callback_query_handler(lambda c: c.data == "obj_trust")
-async def cb_obj_trust(cq: types.CallbackQuery):
-    await safe_answer(cq)
-    text = (
-        "🧠 'Почему я должен верить тебе?'\n\n"
-        "Варианты ответов:\n"
-        "— 'По той же причине, по которой я доверяю тебе и верю, что наше общение останется между нами. Что ты думаешь об этом?'\n"
-        "— 'Ты не доверяешь мне, потому что тебя кто-то обманывал ранее? Или ты просто торгуешься?'"
-    )
-    kb = InlineKeyboardMarkup().add(InlineKeyboardButton("Вернуться", callback_data="start_objections"))
-    await bot.send_message(cq.from_user.id, text, reply_markup=kb)
-
-
-@dp.callback_query_handler(lambda c: c.data == "obj_scam")
-async def cb_obj_scam(cq: types.CallbackQuery):
-    await safe_answer(cq)
-    text = (
-        "💬 'А ты не обманешь меня? Мне часто показывают не то, что обещают.'\n\n"
-        "Варианты ответов:\n\n"
-        "1) Честность + логика:\n"
-        "\"Можно я буду с тобой откровенной? Наше общение — как игра, в которой мы оба получаем эмоции и кайф. Зачем мне обманывать тебя ради $30?\" 😂\n\n"
-        "2) Флирт + юмор:\n"
-        "\"Ты не заметил, но я уже обманула тебя...\" — и дальше лёгкая игра."
-    )
-    kb = InlineKeyboardMarkup().add(InlineKeyboardButton("Вернуться", callback_data="start_objections"))
-    await bot.send_message(cq.from_user.id, text, reply_markup=kb)
-
-
-@dp.callback_query_handler(lambda c: c.data == "obj_10")
-async def cb_obj_10(cq: types.CallbackQuery):
-    await safe_answer(cq)
-    text = (
-        "❗️ 'У меня всего 10$' — не злись и не унижай клиента.\n\n"
-        "Вариант мягкой провокации:\n"
-        "\"Мне приятно, что ты откровенный со мной. Могу я быть честной? Скажи, ты действительно думаешь, что делиться всем за $10 нормально?\""
-    )
-    kb = InlineKeyboardMarkup().add(InlineKeyboardButton("Вернуться", callback_data="start_objections"))
-    await bot.send_message(cq.from_user.id, text, reply_markup=kb)
-
-
-@dp.callback_query_handler(lambda c: c.data == "obj_love")
-async def cb_obj_love(cq: types.CallbackQuery):
-    await safe_answer(cq)
-    text = (
-        "💌 'Я хочу найти любовь' — важный момент: никаких обещаний о реальной встрече.\n\n"
-        "\"Правильно ли я тебя понимаю, что на сайте, где мужчины покупают контент, ты хочешь найти любовь?\"\n\n"
-        "Дальше мягко объяснить рамки: ваши отношения остаются виртуальными, и труд/время модели оплачиваются."
-    )
-    kb = InlineKeyboardMarkup().add(InlineKeyboardButton("Вернуться", callback_data="start_objections"))
-    await bot.send_message(cq.from_user.id, text, reply_markup=kb)
-
-
-@dp.callback_query_handler(lambda c: c.data == "obj_rules_platform")
-async def cb_obj_rules_platform(cq: types.CallbackQuery):
-    await safe_answer(cq)
-    text = (
-        "🚫 Правила OnlyFans (основное):\n"
-        "- Никаких лиц младше 18 лет\n"
-        "- Никакого насилия/изнасилования/без согласия\n"
-        "- Никакой зоофилии\n"
-        "- Не публикуй чужие личные данные и т.д.\n\n"
-        "Смотри на источник и помни об ограничениях."
-    )
-    kb = InlineKeyboardMarkup().add(InlineKeyboardButton("Правила агентства", callback_data="obj_rules_agency"))
-    await bot.send_message(cq.from_user.id, text, reply_markup=kb)
-
-
-@dp.callback_query_handler(lambda c: c.data == "obj_rules_agency")
-async def cb_obj_rules_agency(cq: types.CallbackQuery):
-    await safe_answer(cq)
-    text = (
-        "Агентство ценит дисциплину. За нарушение — штрафы и возможное увольнение.\n"
-        "Честность и уважение к делу — всегда в приоритете."
-    )
-    kb = InlineKeyboardMarkup().add(InlineKeyboardButton("Чек-лист и завершение", callback_data="obj_checklist"))
-    await bot.send_message(cq.from_user.id, text, reply_markup=kb)
-
-
-@dp.callback_query_handler(lambda c: c.data == "obj_checklist")
-async def cb_obj_checklist(cq: types.CallbackQuery):
-    await safe_answer(cq)
-    text = (
-        "🎉 Вводная часть завершена — осталось ознакомиться с чек-листом для смены.\n"
-        "Чек-лист — базовые задачи на каждую смену (фиксировать баланс, работать рассылки, VIP, онлайн и массовая рассылки и т.д.)."
-    )
-    kb = InlineKeyboardMarkup().add(InlineKeyboardButton("Пройти тест", callback_data="start_quiz"))
-    await bot.send_message(cq.from_user.id, text, reply_markup=kb)
+# --- Обработка ответа на первый контрольный вопрос ---
+@dp.message_handler(state=Form.waiting_for_question_1, content_types=types.ContentTypes.TEXT)
+async def process_first_control_answer(message: types.Message, state: FSMContext):
+    answer = message.text.strip()
+    # можно сохранить ответ (файл/БД) — тут просто подтверждаем и двигаемся дальше
+    await bot.send_message(message.chat.id, "Спасибо за ответ! Мы проверим и продолжим обучение.")
+    await state.finish()
 
 
 # === QUIZ / TEST SEQUENCE ===
