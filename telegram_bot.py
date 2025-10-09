@@ -413,24 +413,24 @@ async def after_mailing_next(cq: types.CallbackQuery):
 )
     await bot.send_message(cq.from_user.id, text7)
 
-kb_start_questions = InlineKeyboardMarkup().add(
-    InlineKeyboardButton("🚀 Начать проверку знаний", callback_data="start_questions")
-)
-    await bot.send_message(cq.from_user.id, "Когда будешь готов — начинаем 👇", reply_markup=kb_start_questions)
+# --- обработчик "Да" ---
+@dp.callback_query_handler(lambda c: c.data == "questions_start")
+async def process_questions_start(callback_query: types.CallbackQuery):
+    await bot.send_message(callback_query.from_user.id, "Сейчас закрепим материал 💡\nОтвечай своими словами 💪")
+    await bot.send_message(callback_query.from_user.id, "🙋 На что в первую очередь нужно опираться при общении с клиентами?")
+    await bot.send_message(callback_query.from_user.id, "🙋 Можно ли в рассылках использовать слишком откровенные сообщения и почему?")
+    await bot.send_message(callback_query.from_user.id, "✍️ Напиши персонализированное сообщение-рассылку клиенту. (Для примера: Его зовут Саймон, у него есть 3-х летняя дочь, и он увлекается баскетболом. Можешь использовать эту информацию для написания рассылки)")
+")
 
-    # --- Вопрос 1 ---
-@dp.callback_query_handler(lambda c: c.data == "start_questions")
-async def start_questions(cq: types.CallbackQuery):
-    await safe_answer(cq)
-
-    text7 = "Теперь давай проверим, насколько хорошо ты усвоил материал 💬"
-    await bot.send_message(cq.from_user.id, text7)
-
-    question1 = (
-        "🙋 На что в первую очередь нужно опираться при общении с клиентами?"
+    photo = InputFile("images/teamwork.jpg")
+    keyboard = InlineKeyboardMarkup().row(
+        InlineKeyboardButton("🌟ПО", callback_data="soft"),
+        InlineKeyboardButton("🌟Командная Работа", callback_data="teamwork")
     )
-    await bot.send_message(cq.from_user.id, question1)
-    await Form.waiting_for_question_1.set()
+    await bot.send_photo(callback_query.from_user.id, photo=photo, 
+        caption="Теперь давай обсудим командную работу и ПО, которое ты будешь использовать 🤖\n\n"
+                "Как первое, так и второе - приведут тебя к принципам и правилам, которые упрощают работу, повышая ее качество!\n\n"     
+                "С чего начнем? 🛃", reply_markup=keyboard)
 
 
 # --- Ответ на вопрос 1 ---
