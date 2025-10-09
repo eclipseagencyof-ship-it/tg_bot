@@ -409,17 +409,63 @@ async def after_mailing_next(cq: types.CallbackQuery):
     )
     await bot.send_message(cq.from_user.id, text7)
 
-    question = "🙋 На что в первую очередь нужно опираться при общении с клиентами?"
-    await bot.send_message(cq.from_user.id, question)
+    # --- Вопрос 1 ---
+@dp.callback_query_handler(lambda c: c.data == "start_questions")
+async def start_questions(cq: types.CallbackQuery):
+    await safe_answer(cq)
+
+    text7 = "Теперь давай проверим, насколько хорошо ты усвоил материал 💬"
+    await bot.send_message(cq.from_user.id, text7)
+
+    question1 = (
+        "🙋 На что в первую очередь нужно опираться при общении с клиентами?"
+    )
+    await bot.send_message(cq.from_user.id, question1)
     await Form.waiting_for_question_1.set()
 
-# --- handle question answer ---
+
+# --- Ответ на вопрос 1 ---
 @dp.message_handler(state=Form.waiting_for_question_1, content_types=types.ContentTypes.TEXT)
-async def process_first_control_answer(message: types.Message, state: FSMContext):
-    answer = message.text.strip()
-    # тут можно сохранить ответ в файл/БД. Пока — подтверждаем.
-    await bot.send_message(message.chat.id, "Спасибо за ответ! Мы проверим и продолжим обучение.")
+async def process_first_question(message: types.Message, state: FSMContext):
+    # Сохраняем ответ (можно в БД, пока просто пропускаем)
+    await state.update_data(answer1=message.text.strip())
+
+    # Переходим ко второму вопросу
+    question2 = (
+        "🙋 Можно ли в рассылках использовать сообщения со слишком откровенным посылом "
+        "и почему, если Да/Нет?"
+    )
+    await bot.send_message(message.chat.id, question2)
+    await Form.next()  # теперь state -> waiting_for_question_2
+
+
+# --- Ответ на вопрос 2 ---
+@dp.message_handler(state=Form.waiting_for_question_2, content_types=types.ContentTypes.TEXT)
+async def process_second_question(message: types.Message, state: FSMContext):
+    await state.update_data(answer2=message.text.strip())
+
+    # Переходим к третьему вопросу
+    question3 = (
+        "✍️ Напиши персонализированное сообщение-рассылку клиенту.\n\n"
+        "Для примера: Его зовут Саймон, у него есть 3-х летняя дочь, и он увлекается баскетболом. "
+        "Можешь использовать эту информацию для написания рассылки."
+    )
+    await bot.send_message(message.chat.id, question3)
+    await Form.next()  # теперь state -> waiting_for_question_3
+
+
+# --- Ответ на вопрос 3 ---
+@dp.message_handler(state=Form.waiting_for_question_3, content_types=types.ContentTypes.TEXT)
+async def process_third_question(message: types.Message, state: FSMContext):
+    await state.update_data(answer3=message.text.strip())
+
+    # Получаем все ответы (если нужно дальше использовать)
+    data = await state.get_data()
+    print("Ответы пользователя:", data)
+
+    # Завершаем состояние
     await state.finish()
+
 
 # === Обработчики меню возражений (включая тест) ===
 @dp.callback_query_handler(lambda c: c.data == "start_objections")
