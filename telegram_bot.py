@@ -241,8 +241,8 @@ async def how_to_earn_info(cq: types.CallbackQuery):
         "Любая мелочь — повод для сближения, если цель не просто продать, а завоевать доверие. "
         "Ведь, как и в любви, по-настоящему вовлекает тот, кто цепляет чем-то личным 💘"
     )
-     await bot.send_message(cq.from_user.id, text1)
-     await asyncio.sleep(0.5)
+    await bot.send_message(cq.from_user.id, text1)
+    await asyncio.sleep(0.5)
 
     # 2️⃣ Второй блок
     text2 = (
@@ -252,8 +252,8 @@ async def how_to_earn_info(cq: types.CallbackQuery):
         "🧩 На основе собранной информации понимаешь, чего хочет фан + "
         "давишь на это во время продажи = прибыль 📈"
     )
-     await bot.send_message(cq.from_user.id, text2)
-     await asyncio.sleep(0.5)
+    await bot.send_message(cq.from_user.id, text2)
+    await asyncio.sleep(0.5)
 
 
     # 3️⃣ Третий блок с кнопкой
