@@ -275,7 +275,6 @@ async def how_to_earn_info(cq: types.CallbackQuery):
         reply_markup=kb_clients
     )
 
-
 # --- find_clients ---
 @dp.callback_query_handler(lambda c: c.data == "find_clients")
 async def find_clients_info(cq: types.CallbackQuery):
@@ -292,10 +291,16 @@ async def find_clients_info(cq: types.CallbackQuery):
         "Are you here for fun or are you looking for something more? > U here 4 fun or lookin’ 4 sumthin’ more? 😄\n\n"
         "(Ты здесь для развлечения или ищешь что-то большее?)"
     )
-    await send_photo_with_fallback(cq.from_user.id, photo_path, caption=caption1)
 
-     # --- Блок про рассылки (intro + кнопка) ---
-@dp.callback_query_handler(lambda c: c.data == "some_previous_step")  # <-- замени на свой callback_data
+    kb_next = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("➡️ Дальше", callback_data="find_clients_done")
+    )
+
+    await send_photo_with_fallback(cq.from_user.id, photo_path, caption=caption1, reply_markup=kb_next)
+
+
+# --- После рыбалки: блок про рассылки (intro + кнопка) ---
+@dp.callback_query_handler(lambda c: c.data == "find_clients_done")
 async def show_diff_intro(cq: types.CallbackQuery):
     await safe_answer(cq)
 
@@ -306,14 +311,12 @@ async def show_diff_intro(cq: types.CallbackQuery):
         "Работай тонко: лёгкая эротика, намёки, игра с воображением. Пусть его фантазия доделает остальное 💡"
     )
 
-    # ✅ Кнопка прикреплена к первому сообщению
     kb_diff = InlineKeyboardMarkup().add(
         InlineKeyboardButton("💡 Зачем нужны разные рассылки?", callback_data="diff_mailings")
     )
 
     await bot.send_message(cq.from_user.id, text2, reply_markup=kb_diff)
 
-    # Второе сообщение без кнопок
     await bot.send_message(
         cq.from_user.id,
         "Мы используем 3 типа рассылок, каждый из которых ориентирован на разную аудиторию. "
@@ -323,7 +326,6 @@ async def show_diff_intro(cq: types.CallbackQuery):
         "✔️ Массовая — охват всех клиентов страницы, кроме VIP, чтобы не перегружать их.\n\n"
         "Каждый тип рассылки — это свой подход и шанс на продажу. Работай с умом 💬💸"
     )
-
 
 # --- Рассылка: единый последовательный вывод VIP -> ONLINE -> MASS (кнопки только под MASS) ---
 @dp.callback_query_handler(lambda c: c.data == "diff_mailings")
