@@ -364,7 +364,6 @@ async def diff_mailings_info(cq: types.CallbackQuery):
 
     await send_photo_with_fallback(cq.from_user.id, photo_mass, caption=caption_mass, reply_markup=kb_mass, parse_mode=ParseMode.MARKDOWN)
 
-# --- After mailing buttons ---
 # --- Финальный блок после рассылки ---
 @dp.callback_query_handler(lambda c: c.data == "mailing_done")
 async def mailing_done(cq: types.CallbackQuery):
@@ -487,48 +486,6 @@ async def handle_question_3(message: types.Message, state: FSMContext):
         "С чего начнем? 🛃",
         reply_markup=next_step_kb
     )
-# --- Ответ на вопрос 1 ---
-@dp.message_handler(state=Form.waiting_for_question_1, content_types=types.ContentTypes.TEXT)
-async def process_first_question(message: types.Message, state: FSMContext):
-    # Сохраняем ответ (можно в БД, пока просто пропускаем)
-    await state.update_data(answer1=message.text.strip())
-
-    # Переходим ко второму вопросу
-    question2 = (
-        "🙋 Можно ли в рассылках использовать сообщения со слишком откровенным посылом "
-        "и почему, если Да/Нет?"
-    )
-    await bot.send_message(message.chat.id, question2)
-    await Form.next()  # теперь state -> waiting_for_question_2
-
-
-# --- Ответ на вопрос 2 ---
-@dp.message_handler(state=Form.waiting_for_question_2, content_types=types.ContentTypes.TEXT)
-async def process_second_question(message: types.Message, state: FSMContext):
-    await state.update_data(answer2=message.text.strip())
-
-    # Переходим к третьему вопросу
-    question3 = (
-        "✍️ Напиши персонализированное сообщение-рассылку клиенту.\n\n"
-        "Для примера: Его зовут Саймон, у него есть 3-х летняя дочь, и он увлекается баскетболом. "
-        "Можешь использовать эту информацию для написания рассылки."
-    )
-    await bot.send_message(message.chat.id, question3)
-    await Form.next()  # теперь state -> waiting_for_question_3
-
-
-# --- Ответ на вопрос 3 ---
-@dp.message_handler(state=Form.waiting_for_question_3, content_types=types.ContentTypes.TEXT)
-async def process_third_question(message: types.Message, state: FSMContext):
-    await state.update_data(answer3=message.text.strip())
-
-    # Получаем все ответы (если нужно дальше использовать)
-    data = await state.get_data()
-    print("Ответы пользователя:", data)
-
-    # Завершаем состояние
-    await state.finish()
-
 
 # === Обработчики меню возражений (включая тест) ===
 @dp.callback_query_handler(lambda c: c.data == "start_objections")
