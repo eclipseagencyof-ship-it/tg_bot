@@ -44,11 +44,15 @@ IMAGES_DIR.mkdir(exist_ok=True)
 RESULTS_DIR.mkdir(exist_ok=True)
 
 # --- States ---
+from aiogram.dispatcher.filters.state import State, StatesGroup
+
 class Form(StatesGroup):
     waiting_for_name = State()
     waiting_for_onlyfans = State()
     quiz_waiting_answer = State()
     waiting_for_question_1 = State()
+    waiting_for_question_2 = State()
+    waiting_for_question_3 = State()
 
 # --- Helpers ---
 def input_file_safe(path):
