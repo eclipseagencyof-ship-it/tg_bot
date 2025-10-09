@@ -470,7 +470,7 @@ async def handle_question_3(message: types.Message, state: FSMContext):
     await state.finish()
 
   # ✅ После первого обучающего блока
-await bot.send_message(
+    await bot.send_message(
     message.chat.id,
     "✅ Отлично! Все ответы получены.\n"
     "Ты справился с первой частью обучения и можешь переходить дальше 🚀"
