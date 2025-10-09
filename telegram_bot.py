@@ -365,6 +365,7 @@ async def diff_mailings_info(cq: types.CallbackQuery):
     await send_photo_with_fallback(cq.from_user.id, photo_mass, caption=caption_mass, reply_markup=kb_mass, parse_mode=ParseMode.MARKDOWN)
 
 # --- After mailing buttons ---
+# --- Финальный блок после рассылки ---
 @dp.callback_query_handler(lambda c: c.data == "mailing_done")
 async def mailing_done(cq: types.CallbackQuery):
     await safe_answer(cq)
@@ -372,7 +373,8 @@ async def mailing_done(cq: types.CallbackQuery):
     text4 = (
         "🎯 Наша цель — дать тебе максимум полезной информации. Сегодня — о банальности в диалоге.\n\n"
         "Как большинство моделей начинают общение в чате?\n\n"
-        "\"Hi. How are u?\" — классика. Но теперь представь, что ты уже 25-я, кто это спросил, а у него, как у того самого котика из тиктока, - все заебись... 👍\n\n"
+        "\"Hi. How are u?\" — классика. Но теперь представь, что ты уже 25-я, кто это спросил, "
+        "а у него, как у того самого котика из тиктока, — всё заебись... 👍\n\n"
         "🛑 СТОП!\n\n"
         "Стандартное приветствие = стандартные ожидания. А значит — клиент жмёт \"назад\"."
     )
@@ -397,10 +399,13 @@ async def mailing_done(cq: types.CallbackQuery):
         "🙅‍♀️ Потому что когда ты пишешь \"How are you?\", чаще всего слышишь:\n\n"
         "\"I'm OK.\" И всё. А дальше? Ничего. 💀"
     )
-    kb_next = InlineKeyboardMarkup().add(InlineKeyboardButton("➡️ Двигаемся дальше?", callback_data="after_mailing_next"))
+    kb_next = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("➡️ Двигаемся дальше?", callback_data="start_questions")
+    )
     await bot.send_message(cq.from_user.id, text6, reply_markup=kb_next)
 
-# --- after_mailing_next -> question ---
+
+# --- Переход к вопросам ---
 @dp.callback_query_handler(lambda c: c.data == "start_questions")
 async def start_questions_intro(cq: types.CallbackQuery):
     await safe_answer(cq)
@@ -417,7 +422,7 @@ async def start_questions_intro(cq: types.CallbackQuery):
 
     await bot.send_message(cq.from_user.id, intro_text)
 
-    # Переход к первому вопросу
+    # --- Первый вопрос ---
     await asyncio.sleep(2)
     await bot.send_message(
         cq.from_user.id,
@@ -427,64 +432,61 @@ async def start_questions_intro(cq: types.CallbackQuery):
     question1 = "🙋 На что в первую очередь нужно опираться при общении с клиентами?"
     await bot.send_message(cq.from_user.id, question1)
     await Form.waiting_for_question_1.set()
-    # --- Ответ на вопрос 1 ---
-    @dp.message_handler(state=Form.waiting_for_question_1, content_types=types.ContentTypes.TEXT)
-    async def handle_question_1(message: types.Message, state: FSMContext):
-        await state.update_data(q1=message.text.strip())
-
-        # Второй вопрос
-        question2 = "🙋 Можно ли в рассылках использовать сообщения со слишком откровенным посылом и почему, если Да/Нет?"
-        await bot.send_message(message.chat.id, question2)
-        await Form.next()  # -> waiting_for_question_2
-
-    # --- Ответ на вопрос 2 ---
-    @dp.message_handler(state=Form.waiting_for_question_2, content_types=types.ContentTypes.TEXT)
-    async def handle_question_2(message: types.Message, state: FSMContext):
-        await state.update_data(q2=message.text.strip())
-
-        # Третий вопрос
-        question3 = (
-            "✍️ Напиши персонализированное сообщение-рассылку клиенту.\n\n"
-            "Для примера: Его зовут Саймон, у него есть 3-летняя дочь, и он увлекается баскетболом. "
-            "Можешь использовать эту информацию для написания рассылки."
-        )
-        await bot.send_message(message.chat.id, question3)
-        await Form.next()  # -> waiting_for_question_3
-
-    # --- Ответ на вопрос 3 ---
-    @dp.message_handler(state=Form.waiting_for_question_3, content_types=types.ContentTypes.TEXT)
-    async def handle_question_3(message: types.Message, state: FSMContext):
-        await state.update_data(q3=message.text.strip())
-
-        # Собираем ответы
-        data = await state.get_data()
-        logger.info(f"Ответы пользователя {message.from_user.id}: {data}")
-
-        await state.finish()
-
-        # Завершение теста
-        await bot.send_message(
-            message.chat.id,
-            "✅ Отлично! Все ответы получены.\n"
-            "Ты справился с первой частью обучения и можешь переходить дальше 🚀"
-        )
-
-        # Кнопки для следующего этапа
-        next_step_kb = InlineKeyboardMarkup(row_width=2)
-        next_step_kb.add(
-            InlineKeyboardButton("💻 Перейти к ПО", callback_data="soft_tools"),
-            InlineKeyboardButton("👥 Командная работа", callback_data="teamwork_info")
-        )
-
-        await bot.send_message(
-            message.chat.id,
-            "Теперь давай обсудим командную работу и ПО, которое ты будешь использовать 🤖\n\n"
-            "Как первое, так и второе - приведут тебя к принципам и правилам, которые упрощают работу, повышая ее качество!\n\n"
-            "С чего начнем? 🛃",
-            reply_markup=next_step_kb
-        )
 
 
+# --- Ответ на вопрос 1 ---
+@dp.message_handler(state=Form.waiting_for_question_1, content_types=types.ContentTypes.TEXT)
+async def handle_question_1(message: types.Message, state: FSMContext):
+    await state.update_data(q1=message.text.strip())
+
+    question2 = "🙋 Можно ли в рассылках использовать сообщения со слишком откровенным посылом и почему, если Да/Нет?"
+    await bot.send_message(message.chat.id, question2)
+    await Form.waiting_for_question_2.set()
+
+
+# --- Ответ на вопрос 2 ---
+@dp.message_handler(state=Form.waiting_for_question_2, content_types=types.ContentTypes.TEXT)
+async def handle_question_2(message: types.Message, state: FSMContext):
+    await state.update_data(q2=message.text.strip())
+
+    question3 = (
+        "✍️ Напиши персонализированное сообщение-рассылку клиенту.\n\n"
+        "Для примера: Его зовут Саймон, у него есть 3-летняя дочь, и он увлекается баскетболом. "
+        "Можешь использовать эту информацию для написания рассылки."
+    )
+    await bot.send_message(message.chat.id, question3)
+    await Form.waiting_for_question_3.set()
+
+
+# --- Ответ на вопрос 3 ---
+@dp.message_handler(state=Form.waiting_for_question_3, content_types=types.ContentTypes.TEXT)
+async def handle_question_3(message: types.Message, state: FSMContext):
+    await state.update_data(q3=message.text.strip())
+
+    data = await state.get_data()
+    logger.info(f"Ответы пользователя {message.from_user.id}: {data}")
+
+    await state.finish()
+
+    await bot.send_message(
+        message.chat.id,
+        "✅ Отлично! Все ответы получены.\n"
+        "Ты справился с первой частью обучения и можешь переходить дальше 🚀"
+    )
+
+    next_step_kb = InlineKeyboardMarkup(row_width=2)
+    next_step_kb.add(
+        InlineKeyboardButton("💻 Перейти к ПО", callback_data="soft_tools"),
+        InlineKeyboardButton("👥 Командная работа", callback_data="teamwork_info")
+    )
+
+    await bot.send_message(
+        message.chat.id,
+        "Теперь давай обсудим командную работу и ПО, которое ты будешь использовать 🤖\n\n"
+        "Как первое, так и второе — приведут тебя к принципам и правилам, которые упрощают работу, повышая её качество!\n\n"
+        "С чего начнем? 🛃",
+        reply_markup=next_step_kb
+    )
 # --- Ответ на вопрос 1 ---
 @dp.message_handler(state=Form.waiting_for_question_1, content_types=types.ContentTypes.TEXT)
 async def process_first_question(message: types.Message, state: FSMContext):
