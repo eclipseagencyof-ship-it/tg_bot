@@ -546,13 +546,36 @@ async def on_shutdown(dp: Dispatcher):
         logger.debug("bot.close() failed (ignored).")
 
 
-if __name__ == '__main__':
-    # start webhook server (Render will provide PORT)
-    executor.start_webhook(
+import os
+from aiogram.utils.executor import start_webhook
+
+# --- Webhook config ---
+WEBHOOK_HOST = os.getenv("WEBHOOK_URL")  # уже задано в .env, например https://tg-bot-wd8j.onrender.com
+WEBHOOK_PATH = f"/webhook/{API_TOKEN}"
+WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
+
+# --- Startup ---
+async def on_startup(dp):
+    await bot.delete_webhook()
+    await bot.set_webhook(WEBHOOK_URL)
+    logger.info(f"✅ Webhook установлен: {WEBHOOK_URL}")
+
+# --- Shutdown ---
+async def on_shutdown(dp):
+    logger.warning("⏹️ Остановка бота...")
+    await bot.delete_webhook()
+    await bot.close()
+    logger.info("🛑 Webhook удалён и бот остановлен.")
+
+# --- Run app ---
+if __name__ == "__main__":
+    start_webhook(
         dispatcher=dp,
         webhook_path=WEBHOOK_PATH,
         on_startup=on_startup,
         on_shutdown=on_shutdown,
-        host='0.0.0.0',
-        port=PORT,
+        skip_updates=True,
+        host="0.0.0.0",
+        port=int(os.getenv("PORT", 8000)),
     )
+
