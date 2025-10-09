@@ -493,8 +493,39 @@ async def handle_question_3(message: types.Message, state: FSMContext):
 async def teamwork_info(cq: types.CallbackQuery):
     await safe_answer(cq)
 
-    # Отправляем фото (замени путь на реальный или ссылку)
-    photo_url = IMAGES_DIR /"teamwork_image.jpg"
+    teamwork_img = IMAGES_DIR / "teamwork_image.jpg"
+    caption = (
+        "🤝 Командная работа — основа успеха, особенно в нашей сфере.\n\n"
+        "Вот несколько простых правил для эффективного взаимодействия:\n\n"
+        "🔹 Доверие — выполняй обещания, будь честен и открыт.\n"
+        "🔹 Общение — разговаривай с коллегами, решай вопросы сразу.\n"
+        "🔹 Понимание ролей — знай, кто за что отвечает.\n"
+        "🔹 Толерантность — уважай чужие мнения и подходы.\n"
+        "🔹 Совместное развитие — делись опытом, расти вместе.\n"
+        "🔹 Ответственность — отвечай за результат — свой и общий.\n\n"
+        "💬 Командная синергия не случается сама собой — её нужно строить. Но поверь, она того стоит!"
+    )
+
+    kb_to_soft = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("💻 Перейдём к ПО", callback_data="soft_tools")
+    )
+
+    await send_photo_with_fallback(
+        cq.from_user.id,
+        teamwork_img,
+        caption,
+        reply_markup=kb_to_soft
+    )
+
+
+
+# --- Обработка кнопки "Командная работа" ---
+@dp.callback_query_handler(lambda c: c.data == "teamwork_info")
+async def teamwork_info(cq: types.CallbackQuery):
+    await safe_answer(cq)
+
+    # Отправляем фото из локальной папки
+    photo_path = IMAGES_DIR / "teamwork_image.jpg"
     caption = (
         "🤝 Командная работа — основа успеха, особенно в нашей сфере.\n\n"
         "Вот несколько простых правил для эффективного взаимодействия:\n\n"
@@ -511,7 +542,12 @@ async def teamwork_info(cq: types.CallbackQuery):
         InlineKeyboardButton("💻 Перейдём к ПО", callback_data="soft_tools")
     )
 
-    await bot.send_photo(cq.from_user.id, photo=photo_url, caption=caption, reply_markup=kb_to_soft)
+    await bot.send_photo(
+        cq.from_user.id,
+        photo=open(photo_path, "rb"),
+        caption=caption,
+        reply_markup=kb_to_soft
+    )
 
 
 # --- Обработка кнопки "Перейти к ПО" ---
@@ -519,8 +555,8 @@ async def teamwork_info(cq: types.CallbackQuery):
 async def soft_tools(cq: types.CallbackQuery):
     await safe_answer(cq)
 
-    # 1️⃣ Текст + Картинка
-    image_url = IMAGES_DIR /"onlymonster_image.jpg"
+    # 1️⃣ Текст + Картинка (локальная)
+    image_path = IMAGES_DIR / "onlymonster_image.jpg"
     text1 = (
         "🟩 Для работы непосредственно на странице мы используем Onlymonster.\n\n"
         "Мы с этим браузером с самого начала — участвовали ещё в первых тестах, когда он был всего лишь расширением, а не полноценным продуктом.\n\n"
@@ -530,12 +566,20 @@ async def soft_tools(cq: types.CallbackQuery):
         "👉 https://onlymonster.ai/downloads\n\n"
         "НО! Не регистрируйся, так как после обучения мы должны отправить тебе пригласительную ссылку."
     )
-    await bot.send_photo(cq.from_user.id, image_url, caption=text1)
 
-    # 2️⃣ Видео (можно указать ссылку)
-    video_url = IMAGES_DIR /"onlymonster_intro.mp4"
-    await bot.send_message(cq.from_user.id, f"🎥 Вот тебе видео (8 минут, sorry 😅) с основами работы в Onlymonster:\n\n{video_url}\n\n"
-                                            "Я знаю, многие не досматривают, но уверяю — в обратном случае у тебя будет преимущество на старте 💪")
+    await bot.send_photo(
+        cq.from_user.id,
+        photo=open(image_path, "rb"),
+        caption=text1
+    )
+
+    # 2️⃣ Видео (ссылка или файл)
+    video_url = IMAGES_DIR / "onlymonster_intro.mp4"
+    await bot.send_message(
+        cq.from_user.id,
+        f"🎥 Вот тебе видео (8 минут, sorry 😅) с основами работы в Onlymonster:\n\n{video_url}\n\n"
+        "Я знаю, многие не досматривают, но уверяю — в обратном случае у тебя будет преимущество на старте 💪"
+    )
 
     # 3️⃣ Текст + кнопка
     text2 = (
@@ -549,7 +593,11 @@ async def soft_tools(cq: types.CallbackQuery):
         InlineKeyboardButton("🤝 Теперь перейдём к работе в команде", callback_data="teamwork_info_final")
     )
 
-    await bot.send_message(cq.from_user.id, text2, reply_markup=kb_to_teamwork)
+    await bot.send_message(
+        cq.from_user.id,
+        text2,
+        reply_markup=kb_to_teamwork
+    )
 
 
 # --- После перехода к командной работе из ПО ---
@@ -557,7 +605,7 @@ async def soft_tools(cq: types.CallbackQuery):
 async def teamwork_info_final(cq: types.CallbackQuery):
     await safe_answer(cq)
 
-    teamwork_image = IMAGES_DIR /"teamwork_image.jpg"
+    teamwork_photo = IMAGES_DIR / "teamwork_image.jpg"
     teamwork_text = (
         "🤝 Командная работа — основа успеха, особенно в нашей сфере.\n\n"
         "Вот несколько простых правил для эффективного взаимодействия:\n\n"
@@ -574,7 +622,12 @@ async def teamwork_info_final(cq: types.CallbackQuery):
         InlineKeyboardButton("➡️ Что дальше?", callback_data="after_teamwork_question")
     )
 
-    await bot.send_photo(cq.from_user.id, teamwork_image, caption=teamwork_text, reply_markup=kb_next)
+    await bot.send_photo(
+        cq.from_user.id,
+        photo=open(teamwork_photo, "rb"),
+        caption=teamwork_text,
+        reply_markup=kb_next
+    )
 
 
 # --- После "Что дальше?" — задаём вопрос пользователю ---
@@ -601,6 +654,7 @@ async def handle_balance_answer(message: types.Message, state: FSMContext):
         "✅ Отлично! Ответ принят.\n\nТы прошёл этот блок обучения — двигаемся дальше 🚀"
     )
     await state.finish()
+
 
 # === Обработчики меню возражений (включая тест) ===
 @dp.callback_query_handler(lambda c: c.data == "start_objections")
