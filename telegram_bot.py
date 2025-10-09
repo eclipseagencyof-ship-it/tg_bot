@@ -628,27 +628,22 @@ async def fallback(message: types.Message):
     await message.answer("Не распознал команду. Используй /start или /menu. Если хочешь пройти тест — открой меню возражений.")
 
 # ======================== Webhook startup/shutdown ========================
-async def on_startup(dispatcher: Dispatcher):
-    try:
-        await bot.delete_webhook()
-        logger.info("Old webhook deleted (if existed).")
-    except Exception:
-        logger.debug("Failed deleting webhook (ignored).")
+async def on_startup(dp):
+    await bot.delete_webhook()
     await bot.set_webhook(WEBHOOK_URL)
-    logger.info(f"Webhook set to {WEBHOOK_URL}")
+    logger.info(f"✅ Webhook установлен: {WEBHOOK_URL}")
 
-async def on_shutdown(dispatcher: Dispatcher):
-    logger.info("Shutting down...")
+async def on_shutdown(dp):
+    logger.warning("⏹️ Остановка бота...")
     try:
         await bot.delete_webhook()
-    except Exception:
-        logger.debug("Failed to delete webhook (ignored).")
-    try:
-        await bot.close()
-    except Exception:
-        logger.debug("bot.close() failed (ignored).")
+    except Exception as e:
+        logger.error(f"Ошибка при удалении вебхука: {e}")
+    await bot.close()
+    logger.info("🛑 Webhook удалён и бот остановлен.")
 
 if __name__ == "__main__":
+    logger.info("🚀 Запуск бота...")
     start_webhook(
         dispatcher=dp,
         webhook_path=WEBHOOK_PATH,
