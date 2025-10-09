@@ -521,31 +521,6 @@ async def fallback(message: types.Message):
 
 
 # ======================== Webhook startup/shutdown ========================
-async def on_startup(dp: Dispatcher):
-    # ensure no previous webhook
-    try:
-        await bot.delete_webhook()
-        logger.info("Old webhook deleted (if existed).")
-    except Exception:
-        logger.debug("Failed deleting webhook (ignored).")
-
-    # set webhook to full path: BASE_URL + WEBHOOK_PATH
-    await bot.set_webhook(WEBHOOK_URL)
-    logger.info(f"Webhook set to {WEBHOOK_URL}")
-
-
-async def on_shutdown(dp: Dispatcher):
-    # remove webhook and close
-    try:
-        await bot.delete_webhook()
-    except Exception:
-        logger.debug("Failed deleting webhook on shutdown.")
-    try:
-        await bot.close()
-    except Exception:
-        logger.debug("bot.close() failed (ignored).")
-
-
 from aiogram.utils.executor import start_webhook
 
 WEBHOOK_PATH = f"/webhook/{API_TOKEN}"
@@ -558,7 +533,10 @@ async def on_startup(dp):
 
 async def on_shutdown(dp):
     logger.warning("⏹️ Остановка бота...")
-    await bot.delete_webhook()
+    try:
+        await bot.delete_webhook()
+    except Exception as e:
+        logger.error(f"Ошибка при удалении вебхука: {e}")
     await bot.close()
     logger.info("🛑 Webhook удалён и бот остановлен.")
 
