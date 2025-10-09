@@ -53,6 +53,8 @@ class Form(StatesGroup):
     waiting_for_question_1 = State()
     waiting_for_question_2 = State()
     waiting_for_question_3 = State()
+    waiting_for_balance_answer = State()
+
 
 # --- Helpers ---
 def input_file_safe(path):
