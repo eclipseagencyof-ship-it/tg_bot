@@ -307,11 +307,12 @@ async def find_clients_info(cq: types.CallbackQuery):
     await bot.send_message(cq.from_user.id, "Дальше — про типы рассылок:", reply_markup=kb_diff)
 
 
-# --- Рассылка: diff_mailings и продолжение ---
+# --- Рассылка: единый последовательный вывод VIP -> ONLINE -> MASS (кнопки только под MASS) ---
 @dp.callback_query_handler(lambda c: c.data == "diff_mailings")
 async def diff_mailings_info(cq: types.CallbackQuery):
     await safe_answer(cq)
 
+    # VIP
     photo_vip = IMAGES_DIR / "vip.jpg"
     caption_vip = (
         "Рассылка подбирается под тип клиента 💬\n\n"
@@ -321,18 +322,9 @@ async def diff_mailings_info(cq: types.CallbackQuery):
         "«Ты уже видел танцующего эльфа в тазике? Надеюсь, не пропустил этот момент! Только не шути, что он — это я в ванной 😂»\n\n"
         "Уловил суть? VIP клиент должен получать рассылку, привязанную исключительно к уже состоявшимся диалогам ранее."
     )
-    await send_photo_with_fallback(cq.from_user.id, photo_vip, caption=caption_vip)
+    await send_photo_with_fallback(cq.from_user.id, photo_vip, caption=caption_vip, parse_mode=ParseMode.MARKDOWN)
 
-    kb_next = InlineKeyboardMarkup().add(
-        InlineKeyboardButton("➡️ Далее", callback_data="diff_online")
-    )
-    await bot.send_message(cq.from_user.id, "Продолжим?", reply_markup=kb_next)
-
-
-@dp.callback_query_handler(lambda c: c.data == "diff_online")
-async def diff_online_info(cq: types.CallbackQuery):
-    await safe_answer(cq)
-
+    # ONLINE (отправляем сразу после VIP)
     photo_online = IMAGES_DIR / "online.jpg"
     caption_online = (
         "Если клиент сейчас онлайн — это лучший момент для рассылки 💬\n\n"
@@ -344,21 +336,13 @@ async def diff_online_info(cq: types.CallbackQuery):
         "🔹 Объяснили, почему 'искали'\n"
         "🔹 Ушли от темы мессенджеров — ведь фанаты важны нам именно здесь."
     )
-    await send_photo_with_fallback(cq.from_user.id, photo_online, caption=caption_online)
+    await send_photo_with_fallback(cq.from_user.id, photo_online, caption=caption_online, parse_mode=ParseMode.MARKDOWN)
 
-    kb_next = InlineKeyboardMarkup().add(
-        InlineKeyboardButton("➡️ Массовая рассылка", callback_data="diff_mass")
-    )
-    await bot.send_message(cq.from_user.id, "Двигаемся дальше?", reply_markup=kb_next)
-
-
-@dp.callback_query_handler(lambda c: c.data == "diff_mass")
-async def diff_mass_info(cq: types.CallbackQuery):
-    await safe_answer(cq)
-
+    # MASS (финальный блок) + КНОПКИ (только здесь)
     photo_mass = IMAGES_DIR / "mass.jpg"
     caption_mass = (
-        "Массовая рассылка летит всем, поэтому её нужно строить так, чтобы зацепить любого, но не отпугнуть тех, с кем ты уже общался(-ась) 📝\n\n"
+        "Массовая рассылка летит всем, поэтому её нужно строить так, чтобы зацепить любого, "
+        "но не отпугнуть тех, с кем ты уже общался(-ась) 📝\n\n"
         "Темы могут быть любые — от бытового до лёгкой эротики, но без перебора, чтобы не скатиться в образ «ещё одной шлюхи» ☝️\n\n"
         "Если не хватает фантазии — обратись к новостям:\n\n"
         "“БОЛЬШОЙ крах банка! Слышал? Один из крупнейших банков США обанкротился. Надеюсь, тебя это не задело 🤞”\n\n"
@@ -368,13 +352,12 @@ async def diff_mass_info(cq: types.CallbackQuery):
         "Фан сможет увидеть до 25 символов в листе чатов, поэтому старайся в эти 25 символов ставить самую 'байтовую' часть своего сообщения."
     )
 
-    kb_mass = InlineKeyboardMarkup().add(
-        InlineKeyboardButton("🌟 Я всё понял! 🌟", callback_data="mailing_done"),
-        InlineKeyboardButton("🌟 Можно ещё информации? 🌟", callback_data="mailing_done")
-    )
+    kb_mass = InlineKeyboardMarkup(row_width=1)
+    # обе кнопки видимые пользователю; их callback'ы можно изменить при желании.
+    kb_mass.add(InlineKeyboardButton("🌟 Я всё понял! 🌟", callback_data="mailing_done"))
+    kb_mass.add(InlineKeyboardButton("🌟 Можно ещё информации? 🌟", callback_data="mailing_done"))
 
-    await send_photo_with_fallback(cq.from_user.id, photo_mass, caption=caption_mass, reply_markup=kb_mass)
-
+    await send_photo_with_fallback(cq.from_user.id, photo_mass, caption=caption_mass, reply_markup=kb_mass, parse_mode=ParseMode.MARKDOWN)
 
 # --- После выбора любой кнопки (mailing_done) ---
 @dp.callback_query_handler(lambda c: c.data == "mailing_done")
