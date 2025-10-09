@@ -144,8 +144,8 @@ async def process_name(message: types.Message, state: FSMContext):
     await state.update_data(name=name)
 
     kb = InlineKeyboardMarkup(row_width=2).add(
-        InlineKeyboardButton("Да", callback_data="onlyfans_yes"),
-        InlineKeyboardButton("Нет", callback_data="onlyfans_no")
+        InlineKeyboardButton("✅ Да", callback_data="onlyfans_yes"),
+        InlineKeyboardButton("❌ Нет", callback_data="onlyfans_no")
     )
     await bot.send_message(message.chat.id, f"Красивое имя, {name}! 🌟\n\n{name}, ты знаком(-а) с работой на OnlyFans?", reply_markup=kb)
     await Form.waiting_for_onlyfans.set()
@@ -226,6 +226,9 @@ async def of_next_2(cq: types.CallbackQuery):
 @dp.callback_query_handler(lambda c: c.data == "how_to_earn")
 async def how_to_earn_info(cq: types.CallbackQuery):
     await safe_answer(cq)
+    await asyncio.sleep(0.2)
+    logger.info(f"➡️ Callback how_to_earn от {cq.from_user.id}")
+
 
     # 1️⃣ Первый блок
     text1 = (
@@ -238,7 +241,8 @@ async def how_to_earn_info(cq: types.CallbackQuery):
         "Любая мелочь — повод для сближения, если цель не просто продать, а завоевать доверие. "
         "Ведь, как и в любви, по-настоящему вовлекает тот, кто цепляет чем-то личным 💘"
     )
-    await bot.send_message(cq.from_user.id, text1)
+     await bot.send_message(cq.from_user.id, text1)
+     await asyncio.sleep(0.5)
 
     # 2️⃣ Второй блок
     text2 = (
@@ -248,7 +252,9 @@ async def how_to_earn_info(cq: types.CallbackQuery):
         "🧩 На основе собранной информации понимаешь, чего хочет фан + "
         "давишь на это во время продажи = прибыль 📈"
     )
-    await bot.send_message(cq.from_user.id, text2)
+     await bot.send_message(cq.from_user.id, text2)
+     await asyncio.sleep(0.5)
+
 
     # 3️⃣ Третий блок с кнопкой
     text3 = (
