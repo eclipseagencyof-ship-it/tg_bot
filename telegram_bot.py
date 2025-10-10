@@ -881,15 +881,6 @@ async def objection_next2(cq: types.CallbackQuery):
         InlineKeyboardButton("⭐ Правила платформы", callback_data="objection_rules")
     )
     await bot.send_message(cq.from_user.id, text, reply_markup=kb_next, parse_mode="HTML")
-# ---new block ---
-
-from aiogram import types
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputFile
-from aiogram.dispatcher import Dispatcher
-from aiogram.utils import executor
-import asyncio
-
-from loader import dp, bot  # если у тебя проект на шаблоне aiogram, иначе замени dp, bot на свои объекты
 
 # --- 1️⃣ Кнопка: "⭐ Правила платформы" ---
 @dp.callback_query_handler(lambda c: c.data == "objection_rules")
