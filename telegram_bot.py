@@ -462,30 +462,31 @@ async def question_2(message: types.Message, state: FSMContext):
 # --- Вопрос 3 ---
 @dp.message_handler(state=Form.waiting_for_question_3, content_types=types.ContentTypes.TEXT)
 async def question_3(message: types.Message, state: FSMContext):
+    # ✅ Сохраняем ответ пользователя
     await state.update_data(question_3=message.text.strip())
 
-    # После последнего вопроса — сообщение о завершении блока
+    # 💬 Сообщаем, что все ответы получены
     await bot.send_message(
         message.chat.id,
         "✅ Отлично! Все ответы получены.\n"
         "Ты справился с первой частью обучения и можешь переходить дальше 🚀"
     )
 
+    # 🧹 Завершаем состояние FSM
     await state.finish()
 
-    # --- Только одна кнопка: Перейти к ПО ---
-    next_step_kb = InlineKeyboardMarkup().add(
+    # --- 💻 Кнопка для перехода к следующему разделу ---
+    next_step_kb = InlineKeyboardMarkup(row_width=1).add(
         InlineKeyboardButton("💻 Перейти к ПО", callback_data="soft_tools")
     )
 
+    # 📩 Отправляем сообщение с кнопкой
     await bot.send_message(
         message.chat.id,
         "Теперь давай обсудим ПО, которое ты будешь использовать 🤖\n\n"
         "Это поможет тебе понять, как всё устроено и почему работа у нас идёт так слаженно 💪",
         reply_markup=next_step_kb
     )
-
-
 # --- Обработка кнопки "Перейти к ПО" ---
 @dp.callback_query_handler(lambda c: c.data == "soft_tools")
 async def soft_tools(cq: types.CallbackQuery):
