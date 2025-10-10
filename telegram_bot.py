@@ -459,7 +459,6 @@ async def handle_question_2(message: types.Message, state: FSMContext):
     await Form.waiting_for_question_3.set()
 
 
-# --- Ответ на вопрос 3 ---
 # --- После завершения блока с ответами ---
 @dp.message_handler(state=Form.waiting_for_balance_answer, content_types=types.ContentTypes.TEXT)
 async def handle_balance_answer(message: types.Message, state: FSMContext):
@@ -482,7 +481,6 @@ async def handle_balance_answer(message: types.Message, state: FSMContext):
         "Это поможет тебе понять, как всё устроено и почему работа у нас идёт так слаженно 💪",
         reply_markup=next_step_kb
     )
-
 # --- Обработка выбора "Перейти к ПО" ---
 @dp.callback_query_handler(lambda c: c.data == "soft_tools")
 async def soft_tools(cq: types.CallbackQuery):
