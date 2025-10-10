@@ -445,32 +445,32 @@ async def handle_question_1(message: types.Message, state: FSMContext):
     await Form.waiting_for_question_2.set()
 
 
-# --- Ответ на вопрос 2 ---
+# --- Вопрос 2 ---
 @dp.message_handler(state=Form.waiting_for_question_2, content_types=types.ContentTypes.TEXT)
-async def handle_question_2(message: types.Message, state: FSMContext):
-    await state.update_data(q2=message.text.strip())
-
+async def question_2(message: types.Message, state: FSMContext):
+    await state.update_data(question_2=message.text.strip())
 
     question3 = (
         "✍️ Напиши персонализированное сообщение-рассылку клиенту.\n\n"
         "Для примера: Его зовут Саймон, у него есть 3-летняя дочь, и он увлекается баскетболом. "
         "Можешь использовать эту информацию для написания рассылки."
     )
+    await bot.send_message(message.chat.id, question3)
+    await Form.waiting_for_question_3.set()
+
+
 # --- Вопрос 3 ---
 @dp.message_handler(state=Form.waiting_for_question_3, content_types=types.ContentTypes.TEXT)
 async def question_3(message: types.Message, state: FSMContext):
-    await state.update_data(question_2=message.text.strip())
+    await state.update_data(question_3=message.text.strip())
 
-
-# --- После завершения блока с ответами ---
-@dp.message_handler(state=Form.waiting_for_balance_answer, content_types=types.ContentTypes.TEXT)
-async def handle_balance_answer(message: types.Message, state: FSMContext):
-    await state.update_data(balance_answer=message.text.strip())
-
+    # После последнего вопроса — сообщение о завершении блока
     await bot.send_message(
         message.chat.id,
-        "✅ Отлично! Ответ принят.\n\nТы прошёл этот блок обучения — двигаемся дальше 🚀"
+        "✅ Отлично! Все ответы получены.\n"
+        "Ты справился с первой частью обучения и можешь переходить дальше 🚀"
     )
+
     await state.finish()
 
     # --- Только одна кнопка: Перейти к ПО ---
@@ -484,12 +484,13 @@ async def handle_balance_answer(message: types.Message, state: FSMContext):
         "Это поможет тебе понять, как всё устроено и почему работа у нас идёт так слаженно 💪",
         reply_markup=next_step_kb
     )
-# --- Обработка выбора "Перейти к ПО" ---
+
+
+# --- Обработка кнопки "Перейти к ПО" ---
 @dp.callback_query_handler(lambda c: c.data == "soft_tools")
 async def soft_tools(cq: types.CallbackQuery):
     await safe_answer(cq)
     await send_soft_block(cq.from_user.id, next_callback="teamwork_info_final")
-
 
 # --- Универсальная функция: блок "ПО (Onlymonster)" ---
 async def send_soft_block(chat_id: int, next_callback: str):
