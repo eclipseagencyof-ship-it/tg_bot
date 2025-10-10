@@ -703,7 +703,7 @@ async def objection_expensive(cq: types.CallbackQuery):
         "Будь умнее: спокойствие + игривость = продажи и лояльность 😌"
     )
     kb_next = InlineKeyboardMarkup().add(
-        InlineKeyboardButton("⭐ Почему я должен верить тебе", callback_data="objection_trust")
+        InlineKeyboardButton("⭐ Почему я должен верить тебе?", callback_data="objection_trust")
     )
     await bot.send_message(cq.from_user.id, text4, reply_markup=kb_next, parse_mode="HTML")
 
@@ -861,7 +861,7 @@ async def objection_next1(cq: types.CallbackQuery):
 # --- Далее 2 ---
 @dp.callback_query_handler(lambda c: c.data == "objection_next2")
 async def objection_next2(cq: types.CallbackQuery):
-    await safe_answer(cq)
+    # await safe_answer(cq)
 
     text = (
         "💸 <b>Клиенты могут не только покупать — но и помогать.</b>\n\n"
@@ -888,7 +888,7 @@ async def objection_rules(cq: types.CallbackQuery):
     await cq.answer()
 
     # 🖼️ Отправка картинки + текста
-    photo1 = InputFile("images/rules1.jpg")  # путь к первой картинке
+    photo1 = IMAGES_DIR / "rules1.jpg")  # путь к первой картинке
     text1 = (
         "<b>📋 Ниже будет список запретов непосредственно от OnlyFans:</b>\n\n"
         "🚫 Выставлять контент с третьими лицами (подругами, парнем, случайным прохожим), если на него не подписан модельный релиз или он не зарегистрирован на ОФ\n"
@@ -943,7 +943,7 @@ async def rules_agency(cq: types.CallbackQuery):
 
     # 🖼️ Картинка "Штрафные санкции"
     await asyncio.sleep(2)
-    photo2 = InputFile("images/fines.jpg")
+    photo2 = IMAGES_DIR / "fines.jpg")
     await bot.send_photo(cq.from_user.id, photo2)
 
     # Текст №2
@@ -960,7 +960,7 @@ async def rules_agency(cq: types.CallbackQuery):
 
     # 🖼️ Картинка "Причины"
     await asyncio.sleep(2)
-    photo3 = InputFile("images/reasons.jpg")
+    photo3 = IMAGES_DIR / "reasons.jpg")
     await bot.send_photo(cq.from_user.id, photo3)
 
     # Финальный блок
@@ -986,7 +986,7 @@ async def show_checklist(cq: types.CallbackQuery):
     await cq.answer()
 
     # 🖼️ Картинка чек-листа
-    photo4 = InputFile("images/checklist.jpg")
+    photo4 = IMAGES_DIR / "checklist.jpg")
     await bot.send_photo(cq.from_user.id, photo4)
 
     await bot.send_message(
