@@ -943,7 +943,7 @@ async def rules_agency(cq: types.CallbackQuery):
 
     # 🖼️ Картинка "Штрафные санкции"
     await asyncio.sleep(2)
-    photo2 = IMAGES_DIR / "fines.jpg")
+    photo2 = IMAGES_DIR / "fines.jpg"
     await bot.send_photo(cq.from_user.id, photo2)
 
     # Текст №2
@@ -960,7 +960,7 @@ async def rules_agency(cq: types.CallbackQuery):
 
     # 🖼️ Картинка "Причины"
     await asyncio.sleep(2)
-    photo3 = IMAGES_DIR / "reasons.jpg")
+    photo3 = IMAGES_DIR / "reasons.jpg"
     await bot.send_photo(cq.from_user.id, photo3)
 
     # Финальный блок
@@ -986,7 +986,7 @@ async def show_checklist(cq: types.CallbackQuery):
     await cq.answer()
 
     # 🖼️ Картинка чек-листа
-    photo4 = IMAGES_DIR / "checklist.jpg")
+    photo4 = IMAGES_DIR / "checklist.jpg"
     await bot.send_photo(cq.from_user.id, photo4)
 
     await bot.send_message(
