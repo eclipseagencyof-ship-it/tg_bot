@@ -494,7 +494,7 @@ async def soft_tools(cq: types.CallbackQuery):
     await send_soft_block(cq.from_user.id, next_callback="teamwork_info_final")
 
 # --- Универсальная функция: блок "ПО (Onlymonster)" ---
-async def send_soft_block(chat_id: int, next_callback: str):
+async def send_soft_block(chat_id: int, next_callback: str = "teamwork_info_final"):
     # 1️⃣ Текст + картинка
     image_path = IMAGES_DIR / "onlymonster_image.jpg"
     text1 = (
@@ -506,6 +506,7 @@ async def send_soft_block(chat_id: int, next_callback: str):
         "👉 https://onlymonster.ai/downloads\n\n"
         "НО! Не регистрируйся, так как после обучения мы должны отправить тебе пригласительную ссылку."
     )
+
     await bot.send_photo(chat_id, photo=open(image_path, "rb"), caption=text1)
 
     # 2️⃣ Видео (локальное)
@@ -521,19 +522,18 @@ async def send_soft_block(chat_id: int, next_callback: str):
         await bot.send_message(chat_id, "⚠️ Видео 'onlymonster_intro.mp4' не найдено в папке images.")
 
     # 3️⃣ Финальный текст + кнопка
-text2 = (
-    "💸 Учёт баланса — вторая ключевая задача оператора, наряду с продажами.\n\n"
-    "Зачем это важно? Просто вспомни крах криптобиржи FTX и их «учёт» 😅\n\n"
-    "🟩 Мы используем Google Таблицы. Всё просто: в начале и в конце смены ты фиксируешь свой баланс.\n\n"
-    "Для работы понадобится аккаунт Google — это обязательное условие."
-)
+    text2 = (
+        "💸 Учёт баланса — вторая ключевая задача оператора, наряду с продажами.\n\n"
+        "Зачем это важно? Просто вспомни крах криптобиржи FTX и их «учёт» 😅\n\n"
+        "🟩 Мы используем Google Таблицы. Всё просто: в начале и в конце смены ты фиксируешь свой баланс.\n\n"
+        "Для работы понадобится аккаунт Google — это обязательное условие."
+    )
 
-kb_next = InlineKeyboardMarkup().add(
-    InlineKeyboardButton("🤝 Теперь перейдём к работе в команде", callback_data="teamwork_info_final")
-)
+    kb_next = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("🤝 Теперь перейдём к работе в команде", callback_data=next_callback)
+    )
 
-       await bot.send_message(chat_id, text2, reply_markup=kb_next)
-
+    await bot.send_message(chat_id, text2, reply_markup=kb_next)
 
 # --- После блока ПО идёт командная работа ---
 @dp.callback_query_handler(lambda c: c.data == "teamwork_info_final")
