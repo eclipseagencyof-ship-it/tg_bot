@@ -494,34 +494,18 @@ async def soft_tools(cq: types.CallbackQuery):
     await send_soft_block(cq.from_user.id, next_callback="teamwork_info_final")
 
 # --- Универсальная функция: блок "ПО (Onlymonster)" ---
-# --- Универсальная функция: блок "ПО (Onlymonster)" ---
 async def send_soft_block(chat_id: int, next_callback: str = "teamwork_info_final"):
     # 1️⃣ Текст + картинка
     image_path = IMAGES_DIR / "onlymonster_image.jpg"
     text1 = (
         "🟩 Для работы непосредственно на странице мы используем Onlymonster.\n\n"
-        "Мы с этим браузером с самого начала — участвовали ещё в первых тестах, когда он был всего лишь расширением.\n\n"
-        "Теперь это мощный инструмент, в который вложено всё, что нужно для комфортной и продуктивной работы.\n\n"
-        "💻 Благодаря Onlymonster наши сотрудники работают в максимально удобной, функциональной и насыщенной \"вкусностями\" среде — всё под рукой, ничего лишнего.\n\n"
+        "💻 Благодаря Onlymonster наши сотрудники работают в максимально удобной и функциональной среде.\n\n"
         "👉 https://onlymonster.ai/downloads\n\n"
-        "⚠️ Не регистрируйся — после обучения мы отправим тебе пригласительную ссылку."
+        "⚠️ Не регистрируйся — после обучения мы отправим пригласительную ссылку."
     )
-
     await bot.send_photo(chat_id, photo=open(image_path, "rb"), caption=text1)
 
-    # 2️⃣ Видео (локальное)
-    video_path = IMAGES_DIR / "onlymonster_intro.mp4"
-    if video_path.exists():
-        await bot.send_video(
-            chat_id,
-            video=open(video_path, "rb"),
-            caption="🎥 Видео (8 минут): основы работы в Onlymonster.\n\n"
-                    "Посмотри — это даст тебе преимущество на старте 💪"
-        )
-    else:
-        await bot.send_message(chat_id, "⚠️ Видео 'onlymonster_intro.mp4' не найдено в папке images.")
-
-    # 3️⃣ Финальный текст + кнопка
+    # 2️⃣ Финальный текст + кнопка
     text2 = (
         "💸 Учёт баланса — вторая ключевая задача оператора.\n\n"
         "В начале и в конце смены ты фиксируешь свой баланс в Google Таблицах.\n\n"
@@ -538,7 +522,7 @@ async def send_soft_block(chat_id: int, next_callback: str = "teamwork_info_fina
 # --- После блока ПО идёт командная работа ---
 @dp.callback_query_handler(lambda c: c.data == "teamwork_info_final")
 async def teamwork_info_final(cq: types.CallbackQuery):
-    await safe_answer(cq)  # если вызывает проблемы — закомментируй для теста
+    await safe_answer(cq)
 
     teamwork_photo = IMAGES_DIR / "teamwork_image.jpg"
     teamwork_text = (
@@ -556,12 +540,16 @@ async def teamwork_info_final(cq: types.CallbackQuery):
         InlineKeyboardButton("➡️ Что дальше?", callback_data="after_teamwork_question")
     )
 
-    await bot.send_photo(
-        cq.from_user.id,
-        photo=open(teamwork_photo, "rb"),
-        caption=teamwork_text,
-        reply_markup=kb_next
-    )
+    teamwork_photo_path = IMAGES_DIR / "teamwork_image.jpg"
+    if teamwork_photo_path.exists():
+        await bot.send_photo(
+            cq.from_user.id,
+            photo=open(teamwork_photo_path, "rb"),
+            caption=teamwork_text,
+            reply_markup=kb_next
+        )
+    else:
+        await bot.send_message(cq.from_user.id, teamwork_text, reply_markup=kb_next)
 # --- Завершающий вопрос ---
 @dp.callback_query_handler(lambda c: c.data == "after_teamwork_question")
 async def after_teamwork_question(cq: types.CallbackQuery):
