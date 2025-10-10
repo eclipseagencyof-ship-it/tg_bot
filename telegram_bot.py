@@ -573,16 +573,27 @@ async def handle_balance_answer(message: types.Message, state: FSMContext):
         message.chat.id,
         "✅ Отлично! Ответ принят.\n\nТы прошёл этот блок обучения — двигаемся дальше 🚀"
     )
-    await state.finish()
 
-    # ⚡ Сразу запускаем новый блок — ВОЗРАЖЕНИЯ
-    await send_objections_block(message.chat.id)
+    # Завершаем FSM, но перед этим ловим ошибки на всякий случай
+    try:
+        await state.finish()
+    except Exception as e:
+        print(f"⚠️ Ошибка при завершении FSM: {e}")
+
+    # ⚡ Запускаем следующий блок
+    try:
+        await send_objections_block(message.chat.id)
+    except Exception as e:
+        print(f"❌ Ошибка при запуске блока 'Возражения': {e}")
+        await bot.send_message(
+            message.chat.id,
+            "⚠️ Произошла ошибка при загрузке следующего раздела. Попробуй ещё раз /start или сообщи администратору."
+        )
 
 
 # --- ФУНКЦИЯ: Блок "Возражения" ---
 async def send_objections_block(chat_id: int):
-    # 1️⃣ Текст + картинка
-    objections_img = IMAGES_DIR / "objections_intro.jpg"  # добавь файл в папку images
+    objections_img = IMAGES_DIR / "objections_intro.jpg"
     text1 = (
         "🎯 Завершаем первый блок обучения одной из ключевых тем — <b>возражения</b>.\n\n"
         "Клиенты часто не покупают сразу — и это абсолютно нормально.👌\n\n"
@@ -592,13 +603,18 @@ async def send_objections_block(chat_id: int):
         "Все клиенты разные: кому-то хватит двух фраз, а кому-то нужно время и внимание ⏳"
     )
 
-    if objections_img.exists():
-        await bot.send_photo(chat_id, photo=open(objections_img, "rb"), caption=text1, parse_mode="HTML")
-    else:
+    try:
+        if objections_img.exists():
+            with open(objections_img, "rb") as f:
+                await bot.send_photo(chat_id, photo=f, caption=text1, parse_mode="HTML")
+        else:
+            await bot.send_message(chat_id, text1, parse_mode="HTML")
+    except Exception as e:
+        print(f"⚠️ Ошибка при отправке фото 'обучения возражениям': {e}")
         await bot.send_message(chat_id, text1, parse_mode="HTML")
 
-    # 2️⃣ Следующее сообщение — топ возражений
-    await asyncio.sleep(3)
+    # --- Второе сообщение ---
+    await asyncio.sleep(2)
     text2 = (
         "🔥 <b>Топ-5 возражений:</b>\n\n"
         "1. Это дорого!\n\n"
@@ -609,19 +625,16 @@ async def send_objections_block(chat_id: int):
     )
     await bot.send_message(chat_id, text2, parse_mode="HTML")
 
-    # 3️⃣ Следующее — текст + кнопка
-    await asyncio.sleep(3)
+    # --- Заключительное сообщение + кнопка ---
+    await asyncio.sleep(2)
     text3 = (
-        "🕵️‍♂️🕵️‍♂️ Я дам тебе несколько вариантов ответов.\n\n"
-        "В общем это выйдет около 18–20 инструментов.\n\n"
-        "Каждый из них работал в компании надёжно, поэтому мы смело предоставляем их новичкам 🥺."
+        "🕵️‍♂️ Теперь я покажу тебе примеры ответов на возражения.\n\n"
+        "Всего будет около 18–20 инструментов — и все они реально работают 💪"
     )
     kb = InlineKeyboardMarkup().add(
         InlineKeyboardButton("⭐ Это дорого!", callback_data="objection_expensive")
     )
     await bot.send_message(chat_id, text3, reply_markup=kb, parse_mode="HTML")
-
-
 # --- Обработка: "Это дорого!" ---
 @dp.callback_query_handler(lambda c: c.data == "objection_expensive")
 async def objection_expensive(cq: types.CallbackQuery):
