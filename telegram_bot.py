@@ -450,13 +450,16 @@ async def handle_question_1(message: types.Message, state: FSMContext):
 async def handle_question_2(message: types.Message, state: FSMContext):
     await state.update_data(q2=message.text.strip())
 
+
     question3 = (
         "✍️ Напиши персонализированное сообщение-рассылку клиенту.\n\n"
         "Для примера: Его зовут Саймон, у него есть 3-летняя дочь, и он увлекается баскетболом. "
         "Можешь использовать эту информацию для написания рассылки."
     )
-    await bot.send_message(message.chat.id, question3)
-    await Form.waiting_for_question_3.set()
+# --- Вопрос 3 ---
+@dp.message_handler(state=Form.waiting_for_question_3, content_types=types.ContentTypes.TEXT)
+async def question_3(message: types.Message, state: FSMContext):
+    await state.update_data(question_2=message.text.strip())
 
 
 # --- После завершения блока с ответами ---
