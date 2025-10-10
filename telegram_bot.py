@@ -650,11 +650,8 @@ async def objection_expensive(cq: types.CallbackQuery):
         "Пусть он сам «дорисует» то, что ты не показала. Это создаёт интерес и желание.\n\n"
         "<b>Пример 1 (нейтрально и слабо):</b>\n\n"
         "🩷 <i>Милый, мои два фото поднимут тебе настроение и не только 😏</i>\n\n"
-        "🚫 <u>Комментарий:</u> Клиенту непонятно, что он покупает и зачем."
-)
-await bot.send_message(chat_id, text, parse_mode="HTML")
-
-        "<b>Пример 2 (визуально, персонализировано):</b>\n"
+        "🚫 <u>Комментарий:</u> Клиенту непонятно, что он покупает и зачем.\n\n"
+        "<b>Пример 2 (визуально, персонализировано):</b>\n\n"
         "(Имя), на первом фото я буквально обнажилась не только телом, но и душой... ещё и в твоей любимой позе. Угадаешь какая?\n\n"
         "А второе фото связано напрямую с тобой.. 😈\n\n"
         "✅ Здесь мы:\n"
@@ -710,8 +707,6 @@ await bot.send_message(chat_id, text, parse_mode="HTML")
     )
     await bot.send_message(cq.from_user.id, text4, reply_markup=kb_next, parse_mode="HTML")
 
-from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
 # --- Ответ на кнопку "Почему я должен верить тебе" ---
 @dp.callback_query_handler(lambda c: c.data == "objection_trust")
@@ -726,7 +721,7 @@ async def objection_trust(cq: types.CallbackQuery):
         "- Давай я покажу тебе, что я реальная!\n"
         "- Почему ты сомневаешься?\n"
         "- Ты обижаешь меня! Как ты смеешь такое мне писать?\n"
-        "- Что ты имеешь виду? я не понимаю…\n\n"
+        "- Что ты имеешь в виду? я не понимаю…\n\n"
         "❌ <i>Эти фразы — реакция, а не контроль ситуации. Они выдают неуверенность.</i>\n\n"
         "✅ <b>Что писать вместо:</b>\n\n"
         "— <i>По той же причине, по которой я доверяю тебе и верю, что наше общение, "
@@ -742,7 +737,6 @@ async def objection_trust(cq: types.CallbackQuery):
         InlineKeyboardButton("⭐ А ты не обманешь меня ?", callback_data="objection_deceive")
     )
     await bot.send_message(cq.from_user.id, text, reply_markup=kb_next, parse_mode="HTML")
-
 
 # --- Ответ на кнопку "А ты не обманешь меня ?" ---
 @dp.callback_query_handler(lambda c: c.data == "objection_deceive")
@@ -887,6 +881,8 @@ async def objection_next2(cq: types.CallbackQuery):
         InlineKeyboardButton("⭐ Правила платформы", callback_data="objection_rules")
     )
     await bot.send_message(cq.from_user.id, text, reply_markup=kb_next, parse_mode="HTML")
+# ---new block ---
+
 @dp.callback_query_handler(lambda c: c.data == "obj_rules_platform")
 async def cb_obj_rules_platform(cq: types.CallbackQuery):
     await safe_answer(cq)
