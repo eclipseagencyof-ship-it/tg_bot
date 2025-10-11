@@ -487,6 +487,15 @@ async def question_3(message: types.Message, state: FSMContext):
         "Это поможет тебе понять, как всё устроено и почему работа у нас идёт так слаженно 💪",
         reply_markup=next_step_kb
     )
+# --- Обработка кнопки "💻 Перейти к ПО" ---
+@dp.callback_query_handler(lambda c: c.data == "soft_tools")
+async def soft_tools(cq: types.CallbackQuery):
+    try:
+        await cq.answer()  # чтобы Telegram не показывал "загрузка..."
+        await send_soft_block(cq.from_user.id, next_callback="teamwork_info_final")
+    except Exception as e:
+        await bot.send_message(cq.from_user.id, f"⚠️ Ошибка при загрузке блока ПО: {e}")
+
 # --- Универсальная функция: блок "ПО (Onlymonster)" ---
 async def send_soft_block(chat_id: int, next_callback: str = "teamwork_info_final"):
     # 1️⃣ Текст + картинка
