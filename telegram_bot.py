@@ -963,11 +963,10 @@ async def objection_rules(cq: types.CallbackQuery):
 # --- 2️⃣ Кнопка: "⭐ А что насчёт запретов агентства?" ---
 @dp.callback_query_handler(lambda c: c.data == "rules_agency")
 async def rules_agency(cq: types.CallbackQuery):
-    # ⚡ мгновенно отвечаем, чтобы Telegram не повторял callback
-    asyncio.create_task(cq.answer())
+    asyncio.create_task(cq.answer())  # мгновенный ответ Telegram
 
     try:
-        # Текст №1
+        # --- Текст №1 ---
         text1 = (
             "Агентство очень ценит усердных и дисциплинированных сотрудников 💼\n\n"
             "Если ты один из них — смело переходи к следующему разделу ⏭️\n\n"
@@ -976,15 +975,20 @@ async def rules_agency(cq: types.CallbackQuery):
         )
         await bot.send_message(cq.from_user.id, text1, parse_mode="HTML")
 
-        # 🖼️ Картинка "Штрафные санкции"
+        # --- Картинка "Штрафные санкции" ---
         await asyncio.sleep(1.5)
         photo2 = IMAGES_DIR / "fines.jpg"
-        try:
-            await bot.send_photo(cq.from_user.id, open(photo2, "rb"))
-        except Exception as e:
-            await bot.send_message(cq.from_user.id, f"⚠️ Не удалось отправить изображение: {e}")
 
-        # Текст №2
+        if not photo2.exists():
+            # если файла нет — показываем предупреждение один раз
+            await bot.send_message(
+                cq.from_user.id,
+                "⚠️ Изображение 'fines.jpg' не найдено, пропускаем этот шаг.",
+            )
+        else:
+            await bot.send_photo(cq.from_user.id, open(photo2, "rb"))
+
+        # --- Текст №2 ---
         await asyncio.sleep(1.5)
         text2 = (
             "Важно понимать: штрафы — не наказание, а способ скорректировать работу ⚖️\n\n"
@@ -995,28 +999,33 @@ async def rules_agency(cq: types.CallbackQuery):
             "<b>Честность и уважение к делу — всегда в приоритете.</b>"
         )
 
-        # Кнопка "⏭️ Далее"
         kb_next = InlineKeyboardMarkup().add(
             InlineKeyboardButton("⏭️ Далее", callback_data="rules_next")
         )
-
         await bot.send_message(cq.from_user.id, text2, reply_markup=kb_next, parse_mode="HTML")
 
     except Exception as e:
         print(f"[rules_agency] Ошибка: {e}")
+        await bot.send_message(cq.from_user.id, f"⚠️ Ошибка: {e}")
+
+
+# --- 3️⃣ Кнопка: "⏭️ Далее" ---
+@dp.callback_query_handler(lambda c: c.data == "rules_next")
+async def rules_next(cq: types.CallbackQuery):
+    asyncio.create_task(cq.answer())
 
     # 🖼️ Картинка "Причины"
-    await asyncio.sleep(2)
+    await asyncio.sleep(1.5)
     photo3 = IMAGES_DIR / "reasons.jpg"
-    await bot.send_photo(cq.from_user.id, photo3)
+    if photo3.exists():
+        await bot.send_photo(cq.from_user.id, open(photo3, "rb"))
 
     # Финальный блок
-    await asyncio.sleep(2)
+    await asyncio.sleep(1.5)
     text3 = (
         "🎉 <b>Хорошая новость!</b>\n\n"
         "Вводная часть завершена — ты почти у финиша 🏁\n\n"
         "Осталось только одно: ознакомиться с чек-листом для работы на смене 📄\n\n"
-        "Что это такое?\n\n"
         "Это список базовых задач, которые ты должен выполнять на каждой смене 🧑‍💻\n\n"
         "Простой, понятный и очень полезный инструмент для уверенного старта!"
     )
@@ -1027,14 +1036,14 @@ async def rules_agency(cq: types.CallbackQuery):
     await bot.send_message(cq.from_user.id, text3, reply_markup=kb_checklist, parse_mode="HTML")
 
 
-# --- 3️⃣ Кнопка: "📋 Чек-лист" ---
+# --- 4️⃣ Кнопка: "📋 Чек-лист" ---
 @dp.callback_query_handler(lambda c: c.data == "show_checklist")
 async def show_checklist(cq: types.CallbackQuery):
-    await cq.answer()
+    asyncio.create_task(cq.answer())
 
-    # 🖼️ Картинка чек-листа
     photo4 = IMAGES_DIR / "checklist.jpg"
-    await bot.send_photo(cq.from_user.id, photo4)
+    if photo4.exists():
+        await bot.send_photo(cq.from_user.id, open(photo4, "rb"))
 
     await bot.send_message(
         cq.from_user.id,
