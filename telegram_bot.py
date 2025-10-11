@@ -500,7 +500,7 @@ async def send_soft_block(chat_id: int, next_callback: str = "teamwork_info_fina
     await bot.send_photo(chat_id, photo=open(image_path, "rb"), caption=text1)
 
     # 2️⃣ Видео (OnlyMonster Intro)
-    image_path = IMAGES_DIR / "onlymonster_intro.mp4"  # путь к видео
+    video_path = IMAGES_DIR / "onlymonster_intro.mp4"  # исправлено!
     await bot.send_video(chat_id, video=open(video_path, "rb"))
 
     # 3️⃣ Финальный текст + кнопка
