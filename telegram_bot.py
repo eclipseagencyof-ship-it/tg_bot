@@ -904,7 +904,7 @@ async def objection_rules(cq: types.CallbackQuery):
     asyncio.create_task(cq.answer())
 
     # 🖼️ Отправляем картинку + текст
-    photo1_path = IMAGES_DIR / "rules1.jpg"
+    image_path = IMAGES_DIR / "rules1.jpg"
     text1 = (
         "<b>📋 Ниже будет список запретов непосредственно от OnlyFans:</b>\n\n"
         "🚫 Контент с третьими лицами без релиза\n"
@@ -919,7 +919,7 @@ async def objection_rules(cq: types.CallbackQuery):
     try:
         await bot.send_photo(
             cq.from_user.id,
-            photo=open(photo1_path, "rb"),
+            photo=open(image_path, "rb"),
             caption=text1,
             parse_mode="HTML"
         )
