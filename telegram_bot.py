@@ -911,11 +911,17 @@ async def objection_next2(cq: types.CallbackQuery):
 # --- Обработка кнопки "⭐ Правила платформы" ---
 @dp.callback_query_handler(lambda c: c.data == "rules")
 async def rules(cq: types.CallbackQuery):
-    # 💡 Telegram требует быстрый ответ — выполняем асинхронно, не ждём
-    asyncio.create_task(cq.answer())
+    try:
+        await cq.answer()
+    except:
+        pass
+
+    image_path = IMAGES_DIR / "rules.jpg"
+    if not image_path.exists():
+        await bot.send_message(cq.from_user.id, f"⚠️ Файл не найден: {image_path}")
+        return
 
     # 🖼️ Отправляем картинку + текст
-    image_path = IMAGES_DIR / "rules.jpg"
     text1 = (
         "<b>📋 Ниже будет список запретов непосредственно от OnlyFans:</b>\n\n"
         "🚫 Выставлять контент с третьими лицами (подругами, парнем, случайным прохожим), если на него не подписан модельный релиз или он не зарегистрирован на ОФ\n"
@@ -928,17 +934,12 @@ async def rules(cq: types.CallbackQuery):
     )
 
     try:
-        await bot.send_photo(
-            cq.from_user.id,
-            photo=open(image_path, "rb"),
-            caption=text1,
-            parse_mode="HTML"
-        )
+        with open(image_path, "rb") as photo:
+            await bot.send_photo(cq.from_user.id, photo=photo, caption=text1, parse_mode="HTML")
     except Exception as e:
-        await bot.send_message(
-            cq.from_user.id,
-            f"⚠️ Ошибка при отправке изображения: {e}"
-        )
+        import traceback
+        print("Ошибка при отправке rules.jpg:", traceback.format_exc())
+        await bot.send_message(cq.from_user.id, f"⚠️ Ошибка при отправке изображения: {e}")
 
     # ⏳ Короткая пауза, чтобы Telegram не пропустил следующее сообщение
     await asyncio.sleep(1.2)
@@ -1191,12 +1192,11 @@ async def quiz_q6(message: types.Message, state: FSMContext):
 @dp.message_handler(state=QuizStates.q7)
 async def quiz_q7(message: types.Message, state: FSMContext):
     data = await state.get_data()
+    user_name = data.get("name") or "Друг"  # ← достаём имя из FSM, если есть
     await state.finish()
 
-    name = message.from_user.first_name or "Друг"
-
     final_text = (
-        f"Ну что ж, {name}, открывай бутылку Moet Chandon 🍾 — тебя можно поздравить с окончанием вводного обучения 🔥\n\n"
+        f"Ну что ж, {user_name}, открывай бутылку Moet Chandon 🍾 — тебя можно поздравить с окончанием вводного обучения 🔥\n\n"
         "Мы с тобой отлично провели время, и думаю, тебе пора начинать делать бабки 💸\n\n"
         "Напиши рекрутеру, который передал тебе ссылку на бот (либо @eclipseagencyy, если ты нашёл бот самостоятельно), "
         "и он направит тебя к твоему администратору, с которым ты в дальнейшем будешь работать.\n\n"
@@ -1207,6 +1207,7 @@ async def quiz_q7(message: types.Message, state: FSMContext):
     )
 
     await bot.send_message(message.chat.id, final_text)
+
 
 # ======================== Webhook startup/shutdown ========================
 async def on_startup(dp):
