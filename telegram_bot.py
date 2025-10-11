@@ -1051,7 +1051,7 @@ async def checklist_handler(cq: types.CallbackQuery):
     await cq.answer()
 
     # 1️⃣ Отправляем картинку чек-листа + текст
-    image_path = IMAGES_DIR / "checklist.png"  # убедись, что название совпадает
+    image_path = IMAGES_DIR / "checklist.jpg"  # убедись, что название совпадает
     caption_text = (
         "Сохрани себе этот лист, потому что у нас в “я забыл(-а)” не верят 🧡\n\n"
         "А следом пойдет табличка с минимальными ценниками на контент."
@@ -1066,7 +1066,7 @@ async def checklist_handler(cq: types.CallbackQuery):
     await asyncio.sleep(1.2)
 
     # 2️⃣ Отправляем картинку "ценности контента"
-    image_path2 = IMAGES_DIR / "content.png"  # проверь, правильное имя файла
+    image_path2 = IMAGES_DIR / "content.jpg"  # проверь, правильное имя файла
     try:
         with open(image_path2, "rb") as photo2:
             await bot.send_photo(cq.from_user.id, photo=photo2)
