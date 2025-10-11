@@ -1179,10 +1179,14 @@ async def quiz_q6(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=QuizStates.q7)
 async def quiz_q7(message: types.Message, state: FSMContext):
+    # Получаем все данные пользователя
     data = await state.get_data()
     await state.finish()
 
-    name = message.from_user.first_name or "Друг"
+    # Забираем имя, введённое ранее
+    name = data.get("name")  # <- берём имя из FSM
+    if not name:  # если по какой-то причине не сохранилось
+        name = message.from_user.first_name or "друг"
 
     final_text = (
         f"Ну что ж, {name}, открывай бутылку Moet Chandon 🍾 — тебя можно поздравить с окончанием вводного обучения 🔥\n\n"
