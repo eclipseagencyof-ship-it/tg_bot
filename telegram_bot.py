@@ -147,13 +147,24 @@ async def cb_agree_conditions(cq: types.CallbackQuery):
 @dp.message_handler(state=Form.waiting_for_name, content_types=types.ContentTypes.TEXT)
 async def process_name(message: types.Message, state: FSMContext):
     name = message.text.strip()
+
+    # сохраняем имя в состояние FSM
     await state.update_data(name=name)
+
+    # сохраняем имя глобально — чтобы использовать в конце обучения
+    async with state.proxy() as data:
+        data["name"] = name
 
     kb = InlineKeyboardMarkup(row_width=2).add(
         InlineKeyboardButton("✅ Да", callback_data="onlyfans_yes"),
         InlineKeyboardButton("❌ Нет", callback_data="onlyfans_no")
     )
-    await bot.send_message(message.chat.id, f"Красивое имя, {name}! 🌟\n\n{name}, ты знаком(-а) с работой на OnlyFans?", reply_markup=kb)
+    await bot.send_message(
+        message.chat.id,
+        f"Красивое имя, {name}! 🌟\n\n{name}, ты знаком(-а) с работой на OnlyFans?",
+        reply_markup=kb
+    )
+
     await Form.waiting_for_onlyfans.set()
 
 # --- Handle onlyfans yes/no ---
@@ -886,7 +897,7 @@ async def objection_next2(cq: types.CallbackQuery):
 
     # 👉 Кнопка "⭐ Правила платформы"
     kb_next = InlineKeyboardMarkup().add(
-        InlineKeyboardButton("⭐ Правила платформы", callback_data="objection_rules")
+        InlineKeyboardButton("⭐ Правила платформы", callback_data="rules")
     )
 
     await bot.send_message(
@@ -898,8 +909,8 @@ async def objection_next2(cq: types.CallbackQuery):
 
 
 # --- Обработка кнопки "⭐ Правила платформы" ---
-@dp.callback_query_handler(lambda c: c.data == "objection_rules")
-async def objection_rules(cq: types.CallbackQuery):
+@dp.callback_query_handler(lambda c: c.data == "rules")
+async def rules(cq: types.CallbackQuery):
     # 💡 Telegram требует быстрый ответ — выполняем асинхронно, не ждём
     asyncio.create_task(cq.answer())
 
@@ -1184,9 +1195,9 @@ async def quiz_q7(message: types.Message, state: FSMContext):
     await state.finish()
 
     # Забираем имя, введённое ранее
-    name = data.get("name")  # <- берём имя из FSM
-    if not name:  # если по какой-то причине не сохранилось
-        name = message.from_user.first_name or "друг"
+    data = await state.get_data()
+name = data.get("name") or message.from_user.first_name or "Друг"
+
 
     final_text = (
         f"Ну что ж, {name}, открывай бутылку Moet Chandon 🍾 — тебя можно поздравить с окончанием вводного обучения 🔥\n\n"
