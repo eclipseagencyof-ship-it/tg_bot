@@ -911,29 +911,7 @@ async def objection_next2(cq: types.CallbackQuery):
 # --- Обработка кнопки "⭐ Правила платформы" ---
 @dp.callback_query_handler(lambda c: c.data == "rules")
 async def rules(cq: types.CallbackQuery):
-    try:
-        await cq.answer()
-    except:
-        pass
-
-    image_path = IMAGES_DIR / "rules.jpg"
-    if not image_path.exists():
-        await bot.send_message(cq.from_user.id, f"⚠️ Файл не найден: {image_path}")
-        return
-
-    # 🖼️ 1️⃣ Отправляем картинку отдельно
-    try:
-        with open(image_path, "rb") as photo:
-            await bot.send_photo(cq.from_user.id, photo=photo)
-    except Exception as e:
-        import traceback
-        print("Ошибка при отправке rules.jpg:", traceback.format_exc())
-        await bot.send_message(cq.from_user.id, f"⚠️ Ошибка при отправке изображения: {e}")
-        return
-
-    # ⏳ Небольшая пауза для плавности
-    await asyncio.sleep(1)
-
+    
     # 🖼️ Отправляем картинку + текст
     text1 = (
         "<b>📋 Ниже будет список запретов непосредственно от OnlyFans:</b>\n\n"
