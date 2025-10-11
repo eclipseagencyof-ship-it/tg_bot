@@ -921,6 +921,19 @@ async def rules(cq: types.CallbackQuery):
         await bot.send_message(cq.from_user.id, f"⚠️ Файл не найден: {image_path}")
         return
 
+    # 🖼️ 1️⃣ Отправляем картинку отдельно
+    try:
+        with open(image_path, "rb") as photo:
+            await bot.send_photo(cq.from_user.id, photo=photo)
+    except Exception as e:
+        import traceback
+        print("Ошибка при отправке rules.jpg:", traceback.format_exc())
+        await bot.send_message(cq.from_user.id, f"⚠️ Ошибка при отправке изображения: {e}")
+        return
+
+    # ⏳ Небольшая пауза для плавности
+    await asyncio.sleep(1)
+
     # 🖼️ Отправляем картинку + текст
     text1 = (
         "<b>📋 Ниже будет список запретов непосредственно от OnlyFans:</b>\n\n"
@@ -933,16 +946,10 @@ async def rules(cq: types.CallbackQuery):
         "🚫 Зоофилия. Всех своих котиков и собачек лучше убрать. Были случаи, когда кошечка модели случайно попала в кадр при съемке контента, а за это страница получила предупреждение\n"
     )
 
-    try:
-        with open(image_path, "rb") as photo:
-            await bot.send_photo(cq.from_user.id, photo=photo, caption=text1, parse_mode="HTML")
-    except Exception as e:
-        import traceback
-        print("Ошибка при отправке rules.jpg:", traceback.format_exc())
-        await bot.send_message(cq.from_user.id, f"⚠️ Ошибка при отправке изображения: {e}")
+    await bot.send_message(cq.from_user.id, text1, parse_mode="HTML")
 
-    # ⏳ Короткая пауза, чтобы Telegram не пропустил следующее сообщение
-    await asyncio.sleep(1.2)
+    # ⏳ Ещё одна пауза
+    await asyncio.sleep(1.5)
 
     # 🧾 Второй блок текста + кнопка
     text2 = (
