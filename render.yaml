@@ -1,0 +1,10 @@
+services:
+  - type: worker
+    name: eclipse-recruitment-bot
+    runtime: docker
+    plan: starter
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: ADMIN_CHAT_ID
+        value: "8327257248"
